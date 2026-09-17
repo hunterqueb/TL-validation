@@ -26,7 +26,7 @@ floor, and every teacher-forced number next to its closed-loop rollout number.
 ```bash
 pip install -e ../qutils          # skbuild: if the editable install fails, `pip install ../qutils`
 pip install -r requirements.txt
-ln -s ~/git/GMAT-Thrust-Data/data data/synthetic
+$EDITOR data.yaml                 # point `gmat` at your GMAT-Thrust-Data/data folder
 export SPACETRACK_USER=... SPACETRACK_PASS=...
 pytest tests/                     # 13 pass, hand-off gate skips until a dataset exists
 ```
@@ -70,3 +70,8 @@ branches share one source model. Run (a) first.
 `tlv/` is six modules and stays six (PLAN.md rule 9): `spacetrack`, `tle_ephem`, `datasets`,
 `models`, `train`, `metrics`. Shared script plumbing lives in `scripts/_common.py`.
 Results are append-only CSV rows in `results/`; figures are regenerated, never hand-edited.
+
+GMAT data stays where it is: [data.yaml](data.yaml) holds one absolute path (`gmat`) to the
+GMAT-Thrust-Data `data/` folder, and `tlv.datasets.load_synthetic` addresses
+`<gmat>/<dataset>/<orbit>/<T>min-<N>/` from it. Nothing is symlinked or copied into this repo.
+Edit that path per machine; it is committed, like the same file in `thrust-classification`.

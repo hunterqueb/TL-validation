@@ -3,20 +3,34 @@ import json
 import pathlib
 
 import numpy as np
+import yaml
 
 from qutils.orbital import dim2NonDim6, nonDim2Dim6, DU_EARTH, TU_EARTH
 
 DT = 60.0
+DATA_YAML = pathlib.Path(__file__).resolve().parents[1] / "data.yaml"
 
 
-def load_synthetic(root="data/synthetic", dataset="regression", orbit="leo",
+def data_root(key="gmat"):
+    """Path from data.yaml. Keeps the big GMAT sets out of this repo (no symlink, no copy)."""
+    cfg = yaml.safe_load(DATA_YAML.read_text())
+    if key not in cfg:
+        raise KeyError(f"{key!r} not in {DATA_YAML}: has {sorted(cfg)}")
+    return pathlib.Path(cfg[key]).expanduser()
+
+
+def load_synthetic(root=None, dataset="regression", orbit="leo",
                    minutes=450, n_sys=10000, tag="NoThrust"):
-    """Load statesArray<tag>.npz from root/<dataset>/<orbit>/<minutes>min-<n_sys>.
+    """Load statesArray<tag>.npz from <gmat>/<dataset>/<orbit>/<minutes>min-<n_sys>.
 
+    `root` defaults to the `gmat` key of data.yaml.
     GMAT sample j is the state after the (j+1)-th step, so t_j = (j+1)*dt (HANDOFF F5).
     Returns (states (N, T, 6), t_sec (T,), extras dict of any metadata keys present).
     """
-    path = pathlib.Path(root) / dataset / orbit / f"{minutes}min-{n_sys}" / f"statesArray{tag}.npz"
+    root = data_root() if root is None else pathlib.Path(root)
+    path = root / dataset / orbit / f"{minutes}min-{n_sys}" / f"statesArray{tag}.npz"
+    if not path.exists():
+        raise FileNotFoundError(f"{path} -- check the `gmat` path in {DATA_YAML}")
     with np.load(path, allow_pickle=True) as f:
         states = f[f"statesArray{tag}"]
         extras = {k: f[k] for k in f.files if k != f"statesArray{tag}"}

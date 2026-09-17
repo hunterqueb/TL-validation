@@ -174,6 +174,7 @@ more training data than the LEO plan assumed. The DDDAS 2-point style is unaffec
 | 2026-09-16 | Real truth = SGP4-densified TLE segments at 60 s, TEME→J2000 | Hunter | HANDOFF §0, §2 |
 | 2026-09-16 | LEO passive objects; Envisat 27386 primary | Hunter; densely tracked, no maneuvers | HANDOFF §4 |
 | 2026-09-17 | **Primary target changed to Yamal 202 (NORAD 28089), a GEO object.** Supersedes the row above | Hunter | HANDOFF §0, §4, §5, §9.5; `configs/targets.yaml`; `configs/branch_*.yaml`; README |
+| 2026-09-17 | GMAT data is addressed through a committed `data.yaml` (one `gmat` key = the GMAT-Thrust-Data `data/` folder), not a `data/synthetic` symlink | Hunter; matches `thrust-classification/data.yaml`, keeps the big sets out of the repo | `data.yaml`, `tlv/datasets.py::data_root`, HANDOFF §2/§3/§5, README, P0-05 |
 | 2026-09-16 | space-track `gp_history` with env-var creds | Hunter | HANDOFF §3.1 |
 | 2026-09-16 | Branch (a) is defined as the ASC procedure *as actually run* (zero-shot, F1) | Audit finding | HANDOFF §1 F1, §4 |
 | 2026-09-16 | Rollout metric added beside every teacher-forced metric | Audit finding F3 | HANDOFF §3.5, §6.1 |

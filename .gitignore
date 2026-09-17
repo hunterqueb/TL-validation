@@ -218,6 +218,7 @@ __marimo__/
 .streamlit/secrets.toml
 
 # tl-validation
+# GMAT data is not in this repo at all -- data.yaml points at it (data.yaml IS committed)
 data/
 !data/.gitkeep
 results/*.csv

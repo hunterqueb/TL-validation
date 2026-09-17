@@ -106,7 +106,8 @@ shape       : (N, T, 6)  float64          [x, y, z, vx, vy, vz]  km, km/s, J2000
 dt          : 60.0 s
 time        : synthetic  t_j = (j+1)*dt   (GMAT, F5)
               real       t_j = j*dt       from segment start; explicit `t_sec` key
-directory   : data/<dataset>/<orbit>/<T>min-<N>/          e.g. data/regression/leo/450min-10000
+directory   : <gmat>/<dataset>/<orbit>/<T>min-<N>/        e.g. <gmat>/regression/leo/450min-4000
+              <gmat> = the `gmat` key of data.yaml (the GMAT-Thrust-Data data folder)
 ```
 
 Real-data file (written by `tlv/tle_ephem.py`), one object per file:
@@ -157,7 +158,8 @@ tl-validation/
 ├── tests/
 │   ├── test_tle_ephem.py
 │   └── test_datasets.py
-├── data/      (gitignored)   tle/  real/  synthetic/ (symlink to ~/git/GMAT-Thrust-Data/data)
+├── data.yaml                   absolute path to the GMAT-Thrust-Data data folder (committed)
+├── data/      (gitignored)   tle/  real/   — GMAT data is NOT placed here, see data.yaml
 ├── results/   (gitignored)   csv per run
 └── figures/                  pdf/png, same naming scheme as ASC2025 (`<problem>-<Domain><Plot>.pdf`)
 ```
@@ -380,7 +382,7 @@ Order is strict. Each step ends with a runnable command and an artifact.
 
 **Step 0 — environment**
 1. `git clone` qutils next to this repo; `pip install -e ../qutils`; `pip install -r requirements.txt`.
-2. `ln -s ~/git/GMAT-Thrust-Data/data data/synthetic`.
+2. Point the `gmat` key of `data.yaml` at your `GMAT-Thrust-Data/data` folder.
 3. Export `SPACETRACK_USER`, `SPACETRACK_PASS`.
 4. Apply the qutils fix in 8.2 (F4) first; every later number depends on it.
 
@@ -612,7 +614,7 @@ artifact exists, and its test (if any) passes. Do not start branch (c) before M1
 ```bash
 # Step 0
 pip install -e ../qutils && pip install -r requirements.txt
-ln -s ~/git/GMAT-Thrust-Data/data data/synthetic
+$EDITOR data.yaml                 # point `gmat` at GMAT-Thrust-Data/data
 # Step 1
 python scripts/fetch_tles.py --norad 28089 --start 2026-06-01 --stop 2026-07-15
 python scripts/build_real_dataset.py --norad 28089 --minutes 7181 --windows 9

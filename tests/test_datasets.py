@@ -5,6 +5,7 @@ import pytest
 from tlv import datasets as ds
 
 SYNTH = dict(minutes=450, n_sys=4000)   # 450min-10000 / 900min-10000 are empty dirs
+                                        # (LEO: the GEO set the branches need does not exist yet)
 
 
 def test_nondim_roundtrip():
@@ -33,8 +34,8 @@ def test_nearest_synthetic_finds_itself():
     assert idx[0] == 2 and d[0] == 0.0
 
 
-@pytest.mark.skipif(not ds.pathlib.Path("data/synthetic").exists(),
-                    reason="data/synthetic symlink not set up (P0-05)")
+@pytest.mark.skipif(not ds.data_root().exists(),
+                    reason="the `gmat` path in data.yaml does not exist here")
 def test_load_synthetic_shape_and_time_base():
     states, t_sec, _ = ds.load_synthetic(**SYNTH)
     assert states.ndim == 3 and states.shape[2] == 6
