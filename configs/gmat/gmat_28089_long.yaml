@@ -1,0 +1,55 @@
+# Matched synthetic source domain for Yamal 202 (NORAD 28089) -- 7-day long-term window (P6-01).
+# Copy to GMAT-Thrust-Data/config.yaml and run ./generateGMATNoThrustDataset.sh
+#   -> data/regression/geo/10080min-3/statesArrayNoThrust.npz
+# which is the source domain for the 7-day branch (a)/(c) runs of P6-02.
+#
+# Elements are the osculating J2000 elements of Yamal 202 at the 2026-09-17 TLE epoch
+# (SGP4 state -> TEME->J2000 -> qutils.orbital.ECI2OE):
+#   SMA 42165.889 km  ECC 0.000484  INC 6.7000  RAAN 70.0404  AOP 119.4929  MA 57.9959 deg
+#
+# SMA is not a config key. The generator builds it as r_p/(1-e) with r_p = R + lowerAlt
+# and R = 6378 km, so pinning the periapsis altitude pins SMA: at the true eccentricity
+# it comes out at 42165.9 km, and across the sampled e in [0, 0.000484) it spans ~20 km.
+# That 20 km is the effective SMA spread for runs 1..9 (the plan asked for 5 km).
+
+orbit_type: geo
+numMinsToProp: 10080    # 7 days = 7.02 orbital periods
+num_runs: 3             # P6-01: 3 runs is enough for the long-term variant
+
+lowerAlt: 35767.502     # km, periapsis altitude above R = 6378 km (r_p = 42145.5 km)
+upperAlt: 35767.502     # equal to lowerAlt so SMA is pinned, not sampled over a range
+eccentricity: 0.000484  # sampled uniform in [0, this) -- see the SMA note above
+inclination: 6.7000
+inclination_spread: 0.1
+RAAN: 70.0404
+RAAN_spread: 0.1
+argPeriapsis: 119.4929
+argPeriapsis_spread: 0.1
+trueAnomaly: 57.9959    # this is the mean anomaly; at e = 4.8e-4 the TA-MA difference
+trueAnomaly_spread: 0.1 # is ~0.06 deg, below the spread
+
+# Unused by --propType none, but generateSpacecraftThrustOpt.py reads deltaV and
+# chemThrust at import time, so they have to be present. Values from the repo example.
+deltaV: 0.002
+deltaVStd: 0.0
+chemThrust: 10
+chemThrustStd: 0
+elecThrust: 0.1
+elecThrustStd: 0
+chemThrustMin: 2016     # ~20 % duty cycle of numMinsToProp
+elecThrustMin: 8064     # ~80 %
+chemPropTimeStd: 0
+elecPropTimeStd: 0
+
+# --- NOT READ YET: needs the HANDOFF section 8.1 patch (R2-01/R2-02) -------------
+# Without it the epoch stays hardcoded at "20 Jul 2020 12:00:00.000" and the physical
+# parameters are sampled at random per run: SRPArea 1-5 m^2, Cr 1.5-2.0, DryMass 50-150 kg.
+# At GEO solar radiation pressure is the dominant non-spherical perturbation, so a random
+# SRP area means the source domain is NOT matched in the term that matters most (H-7).
+# epoch: "17 Sep 2026 05:52:35.000"
+# fixedElements: true
+# dryMass: 80
+# srpArea: 2.5
+# Cr: 1.75
+# dragArea: 1.8          # meaningless at GEO; Yamal 202's B* is fitted as 0
+# Cd: 2.1

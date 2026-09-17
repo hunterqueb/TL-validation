@@ -51,9 +51,12 @@ python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 7181 --windows 9
     --style asc2 --model mamba --seed 0     # equal-budget row for the M3 comparison
 
 # matched synthetic source (GMAT runs on Hunter's machine)
-python scripts/make_gmat_config.py --norad 28089
-cp configs/gmat_28089.yaml ~/git/GMAT-Thrust-Data/config.yaml
-( cd ~/git/GMAT-Thrust-Data && ./generateGMATNoThrustDataset.sh )
+# configs/gmat/ already holds both runs; regenerate from a real window with
+#   python scripts/make_gmat_config.py --norad 28089 --minutes 7181 --windows 9
+cp configs/gmat/gmat_28089_asc.yaml ~/git/GMAT-Thrust-Data/config.yaml
+( cd ~/git/GMAT-Thrust-Data && ./generateGMATNoThrustDataset.sh )   # -> regression/geo/7181min-10
+cp configs/gmat/gmat_28089_long.yaml ~/git/GMAT-Thrust-Data/config.yaml
+( cd ~/git/GMAT-Thrust-Data && ./generateGMATNoThrustDataset.sh )   # -> regression/geo/10080min-3
 
 # branches (a) and (c)
 python scripts/branch_a_zero_shot.py --norad 28089 --minutes 7181 --windows 9 --model mamba --seed 0
@@ -64,6 +67,24 @@ python scripts/summarize.py
 
 Branch (a) saves its source weights to `results/models/`; branch (c) loads them, so the two
 branches share one source model. Run (a) first.
+
+## Configs
+
+One file per example run, all of them committed:
+
+| file | drives |
+|---|---|
+| [data.yaml](data.yaml) | where the GMAT data folder is |
+| [configs/targets.yaml](configs/targets.yaml) | object, window, `fetch_tles` + `build_real_dataset` |
+| [configs/branch_a.yaml](configs/branch_a.yaml) | zero-shot: synthetic source, no target training |
+| [configs/branch_b.yaml](configs/branch_b.yaml) | from scratch on real data, styles `asc` / `asc2` / `dddas` |
+| [configs/branch_c.yaml](configs/branch_c.yaml) | transfer: 2-epoch fine-tune, modes `full` / `feature` |
+| [configs/gmat/gmat_28089_asc.yaml](configs/gmat/gmat_28089_asc.yaml) | the GMAT run that makes `regression/geo/7181min-10` |
+| [configs/gmat/gmat_28089_long.yaml](configs/gmat/gmat_28089_long.yaml) | the GMAT run that makes `regression/geo/10080min-3` |
+
+The two `configs/gmat/` files are in GMAT-Thrust-Data's own schema (see its `config.yaml`),
+so they are copied to that repo's `config.yaml` and run there. `scripts/make_gmat_config.py`
+regenerates them from a real window and emits the same schema.
 
 ## Layout
 

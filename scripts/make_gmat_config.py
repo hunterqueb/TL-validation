@@ -1,9 +1,15 @@
 #!/usr/bin/env python
 """Write a GMAT-Thrust-Data config matched to one real object and window (R2-03).
 
-Fixed elements from the first real state of the target window, epoch from that state, and
-a ballistic coefficient from the TLE B*. Run 0 is exact; runs >= 1 get the small spreads
-(GMAT-Thrust-Data applies `_spread` only when i > 0 after the section 8.1 patch).
+Emits the schema generateSpacecraftThrustOpt.py reads *today* -- the same shape as
+configs/gmat/gmat_28089_asc.yaml, which was written by hand from this object. SMA is not a
+config key there: the generator builds it as r_p/(1-e) with r_p = R + lowerAlt (R = 6378 km),
+so this pins the periapsis altitude instead.
+
+The epoch and the physical parameters (SRP area, Cr, dry mass) still cannot be set from a
+config -- that needs the HANDOFF section 8.1 patch (R2-01). They are written as a commented
+block. At GEO this matters: SRP is the dominant perturbation and the generator samples its
+area at random per run (H-7).
 """
 import argparse
 import pathlib
@@ -35,10 +41,13 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--norad", type=int, required=True)
-    ap.add_argument("--minutes", type=int, default=505)
-    ap.add_argument("--windows", type=int, default=40)
+    ap.add_argument("--minutes", type=int, default=7181)
+    ap.add_argument("--windows", type=int, default=9)
     ap.add_argument("--window-index", type=int, default=0)
     ap.add_argument("--num-runs", type=int, default=10)
+    ap.add_argument("--orbit", default="geo", help="GMAT orbit_type / directory name")
+    ap.add_argument("--spread", type=float, default=0.1,
+                    help="degrees of spread on INC/RAAN/AOP/TA for the neighbour runs")
     ap.add_argument("--out")
     a = ap.parse_args()
 
@@ -51,30 +60,62 @@ def main():
     bstar = sats[0][1].bstar
     cdam, raw = cd_a_over_m(bstar)
 
+    Re_gmat = 6378.0       # generateSpacecraftThrustOpt.py uses R = 6378, not 6378.1
+    r_p = float(oe[0]) * (1.0 - float(oe[1]))
+
     cfg = {
-        "fixedElements": True,
-        "epoch": epoch.strftime("%d %b %Y %H:%M:%S.000"),
-        "SMA": float(oe[0]), "ECC": float(oe[1]),
-        "INC": float(np.rad2deg(oe[2])), "RAAN": float(np.rad2deg(oe[3])),
-        "AOP": float(np.rad2deg(oe[4])), "TA": float(np.rad2deg(oe[5])),  # M0 ~ TA only for e~0
-        "SMA_spread": 5.0, "ECC_spread": 0.0005,
-        "INC_spread": 0.1, "RAAN_spread": 0.1, "AOP_spread": 0.1, "TA_spread": 0.1,
-        "dryMass": DRY_MASS, "Cd": CD, "dragArea": cdam * DRY_MASS / CD,
-        "srpArea": 1.0, "Cr": 1.8,
-        "num_runs": a.num_runs, "numMinsToProp": a.minutes, "dt": 60,
-        "inclination": 180,      # unused when fixedElements is true (F7)
+        "orbit_type": a.orbit,
+        "numMinsToProp": a.minutes,
+        "num_runs": a.num_runs,
+        "lowerAlt": round(r_p - Re_gmat, 3),
+        "upperAlt": round(r_p - Re_gmat, 3),
+        "eccentricity": round(float(oe[1]), 6),
+        "inclination": round(float(np.rad2deg(oe[2])), 4),
+        "inclination_spread": a.spread,
+        "RAAN": round(float(np.rad2deg(oe[3])) % 360, 4),
+        "RAAN_spread": a.spread,
+        "argPeriapsis": round(float(np.rad2deg(oe[4])) % 360, 4),
+        "argPeriapsis_spread": a.spread,
+        "trueAnomaly": round(float(np.rad2deg(oe[5])) % 360, 4),   # mean anomaly; see note
+        "trueAnomaly_spread": a.spread,
+        # unused by --propType none, but read at import time, so they must be present
+        "deltaV": 0.002, "deltaVStd": 0.0,
+        "chemThrust": 10, "chemThrustStd": 0,
+        "elecThrust": 0.1, "elecThrustStd": 0,
+        "chemThrustMin": int(a.minutes * 0.2), "elecThrustMin": int(a.minutes * 0.8),
+        "chemPropTimeStd": 0, "elecPropTimeStd": 0,
     }
 
-    out = pathlib.Path(a.out or f"configs/gmat_{a.norad}.yaml")
-    header = (f"# matched source domain for NORAD {a.norad}, window {a.window_index} of "
-              f"{a.minutes}min-{a.windows}\n"
-              f"# B* {bstar:.6e} 1/ER -> Cd*A/m raw {raw:.5f}, clamped {cdam:.5f} m^2/kg "
-              f"(limits {CDAM_LIMITS})\n"
-              f"# run 0 is exact; runs >= 1 use the _spread values\n")
-    out.write_text(header + yaml.safe_dump(cfg, sort_keys=False))
-    print(header + f"wrote {out}")
-    print("NOTE: TA is filled from the mean anomaly; for e ~ 0 the difference is small, "
-          "but check it if the object is eccentric.")
+    out = pathlib.Path(a.out or f"configs/gmat/gmat_{a.norad}.yaml")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    header = (
+        f"# Matched synthetic source domain for NORAD {a.norad}, window {a.window_index} of\n"
+        f"# {a.minutes}min-{a.windows}. Copy to GMAT-Thrust-Data/config.yaml and run\n"
+        f"# ./generateGMATNoThrustDataset.sh -> data/regression/{a.orbit}/"
+        f"{a.minutes}min-{a.num_runs}/statesArrayNoThrust.npz\n#\n"
+        f"# Osculating J2000 elements at the window start:\n"
+        f"#   SMA {oe[0]:.3f} km  ECC {oe[1]:.6f}  INC {np.rad2deg(oe[2]):.4f}"
+        f"  RAAN {np.rad2deg(oe[3])%360:.4f}  AOP {np.rad2deg(oe[4])%360:.4f}"
+        f"  MA {np.rad2deg(oe[5])%360:.4f} deg\n"
+        f"# SMA is pinned through lowerAlt = upperAlt = r_p - 6378 km; across the sampled\n"
+        f"# eccentricity it spans ~{oe[0]*oe[1]:.0f} km. trueAnomaly is filled from the mean\n"
+        f"# anomaly (difference ~{np.rad2deg(2*oe[1]):.3f} deg at this eccentricity).\n"
+        f"# B* {bstar:.6e} 1/ER -> Cd*A/m raw {raw:.5f}, clamped {cdam:.5f} m^2/kg"
+        f"{'  [B* is 0: no drag fit, expected at GEO]' if bstar == 0 else ''}\n")
+    footer = (
+        "\n# --- NOT READ YET: needs the HANDOFF section 8.1 patch (R2-01/R2-02) ---------\n"
+        "# Without it the epoch stays hardcoded at \"20 Jul 2020 12:00:00.000\" and SRPArea,\n"
+        "# Cr, DragArea, Cd and DryMass are sampled at random per run.\n"
+        f"# epoch: \"{epoch.strftime('%d %b %Y %H:%M:%S.000')}\"\n"
+        "# fixedElements: true\n"
+        f"# dryMass: {DRY_MASS}\n"
+        "# srpArea: 2.5\n"
+        "# Cr: 1.75\n"
+        f"# dragArea: {cdam * DRY_MASS / CD:.4f}\n"
+        f"# Cd: {CD}\n")
+    out.write_text(header + "\n" + yaml.safe_dump(cfg, sort_keys=False) + footer)
+    print(header)
+    print(f"wrote {out}")
 
 
 if __name__ == "__main__":

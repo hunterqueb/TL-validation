@@ -140,6 +140,9 @@ tl-validation/
 ├── configs/
 │   ├── targets.yaml            NORAD ids, windows, dt
 │   ├── branch_a.yaml  branch_b.yaml  branch_c.yaml
+│   └── gmat/                   GMAT-Thrust-Data schema, one per source-domain run:
+│       gmat_28089_asc.yaml  (-> regression/geo/7181min-10)
+│       gmat_28089_long.yaml (-> regression/geo/10080min-3)
 ├── tlv/
 │   ├── __init__.py
 │   ├── spacetrack.py           TLE history download + on-disk cache
@@ -402,8 +405,14 @@ Order is strict. Each step ends with a runnable command and an artifact.
 3. Both write the standard plot set (section 6.1) and a results row.
 
 **Step 3 — matched synthetic source**
-1. Take the first real state of the target window, `ECI2OE` it, write a GMAT config with
-   `fixedElements: true`, `epoch` = window start, ballistic coefficient from B* (section 8.1).
+1. Take the first real state of the target window, `ECI2OE` it, write a GMAT config
+   (`scripts/make_gmat_config.py`, or use the committed `configs/gmat/gmat_28089_asc.yaml`).
+   **Corrected 2026-09-17:** the config uses the schema the generator reads *today* —
+   `lowerAlt`/`upperAlt` pin SMA through r_p = R + lowerAlt with R = 6378 km, and
+   `inclination/RAAN/argPeriapsis/trueAnomaly` + their `_spread` keys already exist. The
+   `fixedElements`/`epoch`/ballistic-coefficient keys of section 8.1 are written as a
+   commented block: they still need the R2-01 patch, and until then the epoch is fixed at
+   `20 Jul 2020 12:00:00.000` and SRPArea/Cr/DryMass are sampled at random per run (H-7).
 2. `./generateGMATNoThrustDataset.sh` with that config → `data/regression/geo/7181min-<N>` where
    N ≥ 10 (one matched trajectory + 9 with small spreads for the multi-trajectory variant).
 3. Sanity plot: synthetic vs real for the first period, position difference < 20 km at 1 period.
