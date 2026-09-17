@@ -2,7 +2,7 @@
 # Equal-budget rule (HANDOFF 6.2): same samples, same target epochs, same seed, same batch
 # size as branch (b) style asc2. Only the initial weights differ.
 branch: c
-source: {kind: synthetic, minutes: 505, n_sys: 10, index: 0, train_periods: 1}
+source: {kind: synthetic, orbit: geo, minutes: 7181, n_sys: 10, index: 0, train_periods: 1}
 target: {kind: real, train_periods: 1}
 epochs_src: 5
 epochs_tgt: 2

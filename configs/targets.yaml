@@ -4,22 +4,29 @@ dt: 60
 
 targets:
   primary:
-    name: Envisat
-    norad: 27386
-    why: defunct since 2012, ~765 km SSO, densely tracked, no maneuvers
-    period_sec: null        # ~6040 s expected; VERIFY against the TLE
-    # H-2: window is a placeholder until Hunter confirms space weather (Ap < 30 every day)
+    name: Yamal 202
+    norad: 28089                 # COSPAR 2003-053A
+    why: >
+      GEO comsat, launched 2003-11-24. Inclination has drifted to 6.57 deg, so north-south
+      station keeping stopped long ago; B* is fitted as 0 (no drag at 35 800 km). VERIFY it
+      is not still doing east-west / relocation burns over the chosen window -- a maneuver
+      breaks all three branches (HANDOFF section 4, the ISS case).
+    period_sec: null             # ~86166 s (1436.1 min) expected from the 2026-09-17 TLE
+    # H-2: window is a placeholder until Hunter confirms it (space weather matters much less
+    # at GEO than it did for the LEO plan; TLE cadence and maneuvers are the real risks here)
     window:
       start: "2026-06-01"
       stop: "2026-07-15"
       max_ap: null
       confirmed: false
-  secondary: null           # H-1: rocket body, perigee 450-550 km, DECAY=null
-  contaminated:             # H-3: only to show a maneuver breaks all three branches
+  secondary: null                # H-1: was "rocket body, perigee 450-550 km" -- re-scope if
+                                 # the primary is now GEO (H-5)
+  contaminated:                  # H-3: only to show a maneuver breaks all three branches
     name: ISS
     norad: 25544
     use_for_headline: false
 
+# 5 periods at GEO is 4.99 days, so the ASC-style and 7-day windows now nearly coincide (H-6).
 windows:
-  asc:   {minutes: 505,   n_windows: 40}   # ~5 orbital periods
-  long:  {minutes: 10080, n_windows: 4}    # 7 days
+  asc:   {minutes: 7181,  n_windows: 9}    # 5 orbital periods; a 45-day span holds 9
+  long:  {minutes: 10080, n_windows: 4}    # 7 days = 7.02 periods

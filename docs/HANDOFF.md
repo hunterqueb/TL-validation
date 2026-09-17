@@ -19,7 +19,7 @@ changes only. Reuse `qutils` functions. Do not fork them into this repo unless a
 |---|---|
 | Primary task | State-vector regression (6-state ECI), as in ASC 2025 / DDDAS. Classification is out of scope for the first pass. |
 | Real-data representation | SGP4-densified TLE segments: each TLE propagated only inside its own validity window, sampled at 60 s, TEME → J2000. Truth quality is SGP4-quality (km-level). Every plot must say so. |
-| Regime | LEO, passive (non-maneuvering) objects. Synthetic source domain comes from GMAT-Thrust-Data LEO runs. |
+| Regime | Passive (non-maneuvering) objects. **Changed 2026-09-17: the primary target is now Yamal 202 (GEO), not a LEO object** — see the target table in section 4 and the Decision Log. The synthetic source domain must be a matched GEO GMAT run; the existing GMAT-Thrust-Data LEO sets are not a source domain for a GEO target. |
 | Historical TLE source | space-track.org `gp_history`, credentials in `SPACETRACK_USER` / `SPACETRACK_PASS`. CelesTrak is a fallback for current-epoch sanity checks only. |
 | Sampling | `dt = 60 s`, identical to GMAT-Thrust-Data. |
 | Frames / units | km, km/s, J2000 equatorial (GMAT `EarthMJ2000Eq`). Non-dimensionalize with `qutils.orbital.dim2NonDim6` before training (see finding F4). |
@@ -351,13 +351,15 @@ Target objects (`configs/targets.yaml`):
 
 | Role | Object | NORAD | Why |
 |---|---|---|---|
-| Primary passive LEO | Envisat | 27386 | Defunct since 2012, ~765 km SSO, densely tracked, no maneuvers. |
+| Primary passive GEO | Yamal 202 | 28089 | COSPAR 2003-053A. sma 42 165 km, period 1436.1 min, ecc 4.4e-4, inc 6.57° (north-south station keeping stopped long ago), B* fitted as 0. **VERIFY no east-west or relocation burns in the window.** |
 | Secondary passive LEO, lower | rocket body, perigee 450–550 km | **VERIFY** via satcat query `OBJECT_TYPE=ROCKET BODY`, `DECAY=null`, `PERIGEE 450--550` | Stronger drag; stresses F8. |
 | Contaminated (optional) | ISS | 25544 | Known reboosts. Use only to show that a maneuver breaks all three branches — not for the headline numbers. |
 
-Windows: ASC-style = 5 orbital periods (~8.4 h for Envisat, ≈ 505 samples). DDDAS-style
-long-term = 7 days = 10080 samples (matches the existing `data/classification/leo/10080min-10`
-synthetic set). Both cut from the same TLE history so the epoch is identical.
+Windows: ASC-style = 5 orbital periods = 7181 samples for Yamal 202 (4.99 days). DDDAS-style
+long-term = 7 days = 10080 samples = 7.02 periods. Both cut from the same TLE history so the
+epoch is identical. **Note (2026-09-17):** at GEO these two windows nearly coincide — for the
+original LEO target they differed by 20×. The ASC-vs-DDDAS distinction is now "5 periods at
+5 epochs" vs "2 points at 50 epochs", not "hours vs a week" (open item H-6).
 
 Hyper-parameters (copied from the scripts, not re-tuned):
 
@@ -383,12 +385,13 @@ Order is strict. Each step ends with a runnable command and an artifact.
 4. Apply the qutils fix in 8.2 (F4) first; every later number depends on it.
 
 **Step 1 — real data**
-1. `python scripts/fetch_tles.py --norad 27386 --start 2026-06-01 --stop 2026-07-15`
-   → `data/tle/27386_*.tle`. Window dates are placeholders; pick a 45-day span with no
-   space-weather storm (check CelesTrak SW file, Ap < 30 throughout). **VERIFY** the span.
-2. `python scripts/build_real_dataset.py --norad 27386 --minutes 505 --windows 40`
+1. `python scripts/fetch_tles.py --norad 28089 --start 2026-06-01 --stop 2026-07-15`
+   → `data/tle/28089_*.tle`. Window dates are placeholders; pick a 45-day span with no
+   maneuver (GEO: a station-keeping or relocation burn, visible as a step in sma or a
+   hand-off jump outlier). Space weather matters little at 35 800 km. **VERIFY** the span.
+2. `python scripts/build_real_dataset.py --norad 28089 --minutes 7181 --windows 9`
    and `--minutes 10080 --windows 4` → two `statesArrayReal.npz` files.
-3. `pytest tests/test_tle_ephem.py`. Attach the hand-off histogram (`figures/27386-HandoffJump.png`).
+3. `pytest tests/test_tle_ephem.py`. Attach the hand-off histogram (`figures/28089-HandoffJump.png`).
 
 **Step 2 — branch (b), real low-data** (first because it needs no synthetic data)
 1. Port `mambaCR3BP6d_DDDAS.py`: replace `ode87(...)` with `load_real(...)`, keep the training
@@ -399,7 +402,7 @@ Order is strict. Each step ends with a runnable command and an artifact.
 **Step 3 — matched synthetic source**
 1. Take the first real state of the target window, `ECI2OE` it, write a GMAT config with
    `fixedElements: true`, `epoch` = window start, ballistic coefficient from B* (section 8.1).
-2. `./generateGMATNoThrustDataset.sh` with that config → `data/regression/leo/505min-<N>` where
+2. `./generateGMATNoThrustDataset.sh` with that config → `data/regression/geo/7181min-<N>` where
    N ≥ 10 (one matched trajectory + 9 with small spreads for the multi-trajectory variant).
 3. Sanity plot: synthetic vs real for the first period, position difference < 20 km at 1 period.
    If larger, drag/space-weather mismatch dominates; record it, do not tune it away.
@@ -444,7 +447,7 @@ Reproduce the ASC 2025 figure kinds with the same qutils calls so figures are di
 | **New:** rollout position error vs periods, with the hand-off noise floor as a shaded band | matplotlib in `tlv/metrics.py` | none — this is the honest addition |
 
 File names: `figures/<object>-<branch>-<Domain><Plot>-<model>.pdf`, e.g.
-`27386-c-TargetDomainConservedQuantity-Mamba.pdf`.
+`28089-c-TargetDomainConservedQuantity-Mamba.pdf`.
 
 ### 6.2 Milestones
 
@@ -590,9 +593,17 @@ artifact exists, and its test (if any) passes. Do not start branch (c) before M1
 
 ### 9.5 Open items for Hunter (not for the coding model)
 
-1. Confirm the primary object (Envisat 27386) and pick the secondary lower LEO object.
-2. Confirm the 45-day TLE window after checking space weather.
+1. Confirm the primary object (Yamal 202, 28089 — GEO) and decide what the secondary object
+   now is: the original H-1 ("rocket body, perigee 450–550 km") was chosen to stress LEO drag,
+   which is meaningless against a GEO primary (**H-5**).
+2. Confirm the 45-day TLE window. For a GEO object the screening criterion is "no station-
+   keeping burn", not "Ap < 30".
 3. Decide whether the ISS maneuver-contamination case is in the demo or not.
+5. **H-6:** with a GEO primary the ASC window (5 periods = 4.99 d) and the long window (7 d)
+   nearly coincide. Decide whether the long-term branch should stretch to, say, 30 days.
+6. **H-7:** B* is 0 for Yamal 202, so the ballistic coefficient path in `make_gmat_config.py`
+   clamps to its floor and means nothing. A GEO source domain needs SRP (`Cr`, `srpArea`)
+   matched instead of drag.
 4. Decide whether M5 (pendulumRNN corrected tables) is published alongside the demo. It changes the
    interpretation of the ASC 2025 target-domain results.
 
@@ -603,18 +614,18 @@ artifact exists, and its test (if any) passes. Do not start branch (c) before M1
 pip install -e ../qutils && pip install -r requirements.txt
 ln -s ~/git/GMAT-Thrust-Data/data data/synthetic
 # Step 1
-python scripts/fetch_tles.py --norad 27386 --start 2026-06-01 --stop 2026-07-15
-python scripts/build_real_dataset.py --norad 27386 --minutes 505 --windows 40
-python scripts/build_real_dataset.py --norad 27386 --minutes 10080 --windows 4
+python scripts/fetch_tles.py --norad 28089 --start 2026-06-01 --stop 2026-07-15
+python scripts/build_real_dataset.py --norad 28089 --minutes 7181 --windows 9
+python scripts/build_real_dataset.py --norad 28089 --minutes 10080 --windows 4
 pytest tests/test_tle_ephem.py
 # Step 2
-python scripts/branch_b_real_lowdata.py --norad 27386 --minutes 505 --style asc   --model mamba --seed 0
-python scripts/branch_b_real_lowdata.py --norad 27386 --minutes 10080 --style dddas --model mamba --seed 0
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 7181 --style asc   --model mamba --seed 0
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 10080 --style dddas --model mamba --seed 0
 # Step 3 (in ~/git/GMAT-Thrust-Data)
-cp <tl-validation>/configs/gmat_27386.yaml config.yaml && ./generateGMATNoThrustDataset.sh
+cp <tl-validation>/configs/gmat_28089.yaml config.yaml && ./generateGMATNoThrustDataset.sh
 # Step 4/5
-python scripts/branch_a_zero_shot.py --norad 27386 --minutes 505 --model mamba --seed 0
-python scripts/branch_c_transfer.py  --norad 27386 --minutes 505 --model mamba --tl full --seed 0
+python scripts/branch_a_zero_shot.py --norad 28089 --minutes 7181 --model mamba --seed 0
+python scripts/branch_c_transfer.py  --norad 28089 --minutes 7181 --model mamba --tl full --seed 0
 # Step 7
 python scripts/summarize.py
 ```

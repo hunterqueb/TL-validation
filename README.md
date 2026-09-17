@@ -1,7 +1,11 @@
 # tl-validation
 
 Real-world validation of Mamba transfer learning (ASC 2025, AAS 25-543) and low-data
-training (DDDAS 2024) on real LEO ephemerides derived from space-track TLEs.
+training (DDDAS 2024) on real ephemerides derived from space-track TLEs.
+
+Primary target: **Yamal 202** (NORAD 28089), a GEO comsat — period 1436.1 min, so a
+5-period window is 7181 samples. The original plan targeted a LEO object; see the
+Decision Log in [docs/PLAN.md](docs/PLAN.md) for what that change costs.
 
 Spec: [docs/HANDOFF.md](docs/HANDOFF.md) · order of work: [docs/PLAN.md](docs/PLAN.md) ·
 state: [docs/TASKS.md](docs/TASKS.md).
@@ -34,26 +38,26 @@ after any qutils edit**, or the fix will not be picked up.
 
 ```bash
 # real data
-python scripts/fetch_tles.py --norad 27386 --start 2026-06-01 --stop 2026-07-15
-python scripts/build_real_dataset.py --norad 27386 --minutes 505   --windows 40
-python scripts/build_real_dataset.py --norad 27386 --minutes 10080 --windows 4
+python scripts/fetch_tles.py --norad 28089 --start 2026-06-01 --stop 2026-07-15
+python scripts/build_real_dataset.py --norad 28089 --minutes 7181  --windows 9
+python scripts/build_real_dataset.py --norad 28089 --minutes 10080 --windows 4
 
 # branch (b): from scratch on real data
-python scripts/branch_b_real_lowdata.py --norad 27386 --minutes 505 --windows 40 \
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 7181 --windows 9 \
     --style asc --model mamba --seed 0
-python scripts/branch_b_real_lowdata.py --norad 27386 --minutes 10080 --windows 4 \
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 10080 --windows 4 \
     --style dddas --model mamba --seed 0
-python scripts/branch_b_real_lowdata.py --norad 27386 --minutes 505 --windows 40 \
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 7181 --windows 9 \
     --style asc2 --model mamba --seed 0     # equal-budget row for the M3 comparison
 
 # matched synthetic source (GMAT runs on Hunter's machine)
-python scripts/make_gmat_config.py --norad 27386
-cp configs/gmat_27386.yaml ~/git/GMAT-Thrust-Data/config.yaml
+python scripts/make_gmat_config.py --norad 28089
+cp configs/gmat_28089.yaml ~/git/GMAT-Thrust-Data/config.yaml
 ( cd ~/git/GMAT-Thrust-Data && ./generateGMATNoThrustDataset.sh )
 
 # branches (a) and (c)
-python scripts/branch_a_zero_shot.py --norad 27386 --minutes 505 --windows 40 --model mamba --seed 0
-python scripts/branch_c_transfer.py  --norad 27386 --minutes 505 --windows 40 --model mamba --tl full --seed 0
+python scripts/branch_a_zero_shot.py --norad 28089 --minutes 7181 --windows 9 --model mamba --seed 0
+python scripts/branch_c_transfer.py  --norad 28089 --minutes 7181 --windows 9 --model mamba --tl full --seed 0
 
 python scripts/summarize.py
 ```

@@ -32,7 +32,8 @@ def source_model_path(norad, model, seed):
 def train_source(cfg, norad, model_name, seed, device, plots=True, prefix=None):
     """Train on one matched synthetic trajectory, 1 period, 5 epochs. Returns (model, s)."""
     src = cfg["source"]
-    states, t_syn, _ = ds.load_synthetic(minutes=src["minutes"], n_sys=src["n_sys"])
+    states, t_syn, _ = ds.load_synthetic(orbit=src.get("orbit", "leo"),
+                                        minutes=src["minutes"], n_sys=src["n_sys"])
     seq_dim = states[src["index"]]
     # GMAT sample j is the state after the (j+1)-th step (F5): t_j = (j+1)*dt, set in load_synthetic
     period_syn = float(ECI2OE(seq_dim[0, :3], seq_dim[0, 3:])[6])

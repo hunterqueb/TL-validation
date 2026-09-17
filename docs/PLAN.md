@@ -142,6 +142,28 @@ are meaningless; only the plumbing was checked. What the next agent must know:
 - astropy could not reach the IERS server here, so it fell back to bundled/predicted polar
   motion (arcsec-level). Irrelevant against a km-level SGP4 truth, but it will print a warning.
 
+**Target change to Yamal 202 (2026-09-17, claude).** NORAD 28089 everywhere, verified against
+the live CelesTrak element set: sma 42 165 km, period 86 166 s (1436.1 min), ecc 4.4e-4,
+inc 6.57°, B* = 0. Window sizes follow the period, so the ASC-style window is now
+7181 min × 9 (a 45-day span holds 9 of them), not 505 min × 40. Four things this breaks, none
+of them fixable by an id change — they are open items H-5 … H-7 in HANDOFF §9.5:
+
+- **No source domain.** Every GMAT-Thrust-Data set is LEO. Branch (a) and (c) have nothing
+  to pretrain on until a matched GEO run exists (`data/regression/geo/7181min-10`). The
+  branch configs now say `orbit: geo` so they will fail loudly rather than silently train on
+  a LEO orbit.
+- **The two windows nearly coincide.** 5 GEO periods = 4.99 days against a 7-day long window.
+  The ASC/DDDAS contrast was 20× for the LEO target; it is 1.4× now.
+- **Drag was the whole OOD story (F8) and there is no drag at GEO.** B* is fitted as 0, so
+  `make_gmat_config.py` clamps Cd·A/m to its floor and the number means nothing. The
+  synthetic-vs-real gap at GEO will be SRP and triaxiality, not atmosphere.
+- **"Passive" is an assumption here, not a fact.** Inclination 6.57° says north-south station
+  keeping stopped years ago, but east-west or relocation burns are not ruled out. That has to
+  be screened in the window, the way PLAN §6 risk 1 screens hand-off jumps.
+
+Also: 1 period is now 1436 samples rather than 101, so ASC-style "train on one period" is 14×
+more training data than the LEO plan assumed. The DDDAS 2-point style is unaffected.
+
 ---
 
 ## 8. Decision log (append-only)
@@ -151,6 +173,7 @@ are meaningless; only the plumbing was checked. What the next agent must know:
 | 2026-09-16 | Regression is the primary task; classification out of scope for pass 1 | Hunter | HANDOFF §0 |
 | 2026-09-16 | Real truth = SGP4-densified TLE segments at 60 s, TEME→J2000 | Hunter | HANDOFF §0, §2 |
 | 2026-09-16 | LEO passive objects; Envisat 27386 primary | Hunter; densely tracked, no maneuvers | HANDOFF §4 |
+| 2026-09-17 | **Primary target changed to Yamal 202 (NORAD 28089), a GEO object.** Supersedes the row above | Hunter | HANDOFF §0, §4, §5, §9.5; `configs/targets.yaml`; `configs/branch_*.yaml`; README |
 | 2026-09-16 | space-track `gp_history` with env-var creds | Hunter | HANDOFF §3.1 |
 | 2026-09-16 | Branch (a) is defined as the ASC procedure *as actually run* (zero-shot, F1) | Audit finding | HANDOFF §1 F1, §4 |
 | 2026-09-16 | Rollout metric added beside every teacher-forced metric | Audit finding F3 | HANDOFF §3.5, §6.1 |
