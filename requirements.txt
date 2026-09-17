@@ -1,0 +1,13 @@
+numpy<2
+scipy
+matplotlib
+torch
+torchinfo
+pyyaml
+requests
+sgp4
+astropy<7
+pandas
+captum
+pytest
+# qutils: pip install -e ../qutils

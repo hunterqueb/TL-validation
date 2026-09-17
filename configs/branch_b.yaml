@@ -1,0 +1,17 @@
+# Branch (b) real low-data, from scratch. Two styles.
+branch: b
+styles:
+  asc:   {train_periods: 1, train_size: null, epochs: 5,  d_conv: 4,  minutes: 505}
+  dddas: {train_periods: null, train_size: 2, epochs: 50, d_conv: 16, minutes: 10080}
+  # equal-budget row for M3: same as asc, 2 epochs (P2-07)
+  asc2:  {train_periods: 1, train_size: null, epochs: 2,  d_conv: 4,  minutes: 505}
+epochs_src: 0
+tl_mode: none
+lr: 0.001
+batch_size: 8
+lookback: 1
+loss: huber
+models:
+  mamba: {d_model: 6, n_layers: 1}
+  lstm:  {hidden: 30, layers: 1, dropout: 0}
+seeds: [0, 1, 2]

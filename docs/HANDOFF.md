@@ -245,8 +245,11 @@ Validation tests (`tests/test_tle_ephem.py`):
 
 - SGP4 self-check: propagate the sgp4 package's reference TLE and compare to the values in the
   package's own test file (`sgp4/tests`), tolerance 1e-6 km.
-- Frame check: `|r|` and `|v|` are invariant under `teme_to_j2000` (tolerance 1e-9 relative);
-  `ECI2OE(r, v)[0]` (semi-major axis) is invariant.
+- Frame check: `|r|` is invariant under `teme_to_j2000` to 1e-9 relative. `|v|` and the
+  semi-major axis are **not**: TEME rotates with respect to GCRS at the precession rate
+  (~7.7e-12 rad/s), so the transform correctly adds an ω × r term of ~5e-8 km/s, i.e. 6e-9
+  relative on velocity and twice that on `a` through v². Tolerance is 1e-7 for those two.
+  (Corrected 2026-09-17; the 1e-9 velocity tolerance written at audit time is unattainable.)
 - Hand-off statistics: for the chosen object, median `handoff_jump_km` < 2 km and 95th
   percentile < 10 km over the window. If not, the object or the window is unsuitable.
 
@@ -551,9 +554,11 @@ Do not touch `convertToTLE.py`; do not use its output.
   and is driven by `./generateGMATNoThrustDataset.sh` with `config.yaml` at the repo root
   (`python -m python.generateSpacecraftThrustOpt --propType none`). The GMAT Python API is loaded
   by `python/load_gmat.py`. Run it from that repo root.
-- Existing synthetic sets you can use before GMAT runs: `data/regression/leo/{90,450,900}min-10000/statesArrayNoThrust.npz`
-  (1, 5, 10 periods × 10 000 trajectories; inclination uniform 0–180°, see F7) and
-  `data/classification/leo/10080min-10/statesArrayNoThrust.npz` (7 days × 10).
+- Existing synthetic sets you can use before GMAT runs (**checked 2026-09-17**, this list
+  replaces the one written at audit time): `data/regression/leo/450min-4000`,
+  `90min-10000`, `30min-{2000,3000,10000}`. `regression/leo/450min-10000` and
+  `900min-10000` are **empty directories** — the files were never there. Inclination is
+  uniform 0–180° in all of them (F7), and none carry metadata keys (F5).
 
 ### 9.2 Order of work and definition of done
 

@@ -1,0 +1,25 @@
+# Target objects and windows. period_sec is filled by scripts/build_real_dataset.py
+# from the mean motion of the first TLE (P1-04).
+dt: 60
+
+targets:
+  primary:
+    name: Envisat
+    norad: 27386
+    why: defunct since 2012, ~765 km SSO, densely tracked, no maneuvers
+    period_sec: null        # ~6040 s expected; VERIFY against the TLE
+    # H-2: window is a placeholder until Hunter confirms space weather (Ap < 30 every day)
+    window:
+      start: "2026-06-01"
+      stop: "2026-07-15"
+      max_ap: null
+      confirmed: false
+  secondary: null           # H-1: rocket body, perigee 450-550 km, DECAY=null
+  contaminated:             # H-3: only to show a maneuver breaks all three branches
+    name: ISS
+    norad: 25544
+    use_for_headline: false
+
+windows:
+  asc:   {minutes: 505,   n_windows: 40}   # ~5 orbital periods
+  long:  {minutes: 10080, n_windows: 4}    # 7 days

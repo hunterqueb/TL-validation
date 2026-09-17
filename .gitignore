@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# tl-validation
+data/
+!data/.gitkeep
+results/*.csv
+results/models/
+figures/*.pdf
+figures/*.png
+
+.vscode/

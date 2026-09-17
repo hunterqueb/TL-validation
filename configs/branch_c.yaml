@@ -1,0 +1,17 @@
+# Branch (c) transfer: synthetic pretrain -> 2-epoch real fine-tune (corrected ASC loop).
+# Equal-budget rule (HANDOFF 6.2): same samples, same target epochs, same seed, same batch
+# size as branch (b) style asc2. Only the initial weights differ.
+branch: c
+source: {kind: synthetic, minutes: 505, n_sys: 10, index: 0, train_periods: 1}
+target: {kind: real, train_periods: 1}
+epochs_src: 5
+epochs_tgt: 2
+tl_modes: [full, feature]      # full-multi is optional (P5-04)
+lr: 0.001
+batch_size: 8
+lookback: 1
+loss: huber
+models:
+  mamba: {d_model: 6, n_layers: 1, d_conv: 4}
+  lstm:  {hidden: 30, layers: 1, dropout: 0}
+seeds: [0, 1, 2]

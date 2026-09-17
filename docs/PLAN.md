@@ -119,7 +119,28 @@ agents *after* a single seed-0 run has produced a correct plot set.
 
 ## 7. Phase notes (append-only)
 
-_(none yet)_
+**P0 + R1 + P1 code (2026-09-17, claude).** Repo skeleton, configs, the six `tlv/` modules,
+the six scripts and the three test files are in and `pytest tests/` is green (13 passed, the
+hand-off gate skips until a real dataset exists). qutils has the F4 constants fix and the
+`transferMamba` docstring note. The whole real-data path was exercised end to end on a
+*fabricated* TLE history (epoch-shifted copies of an SGP4 verification TLE, kept in the
+scratchpad, not committed): build -> branches a/b/c -> CSV -> summary. Numbers from that run
+are meaningless; only the plumbing was checked. What the next agent must know:
+
+- Three qutils quirks found while wiring it up, all worked around in this repo, none fixed
+  upstream: `plotStatePredictions` turns its unit conversion into a no-op that returns a
+  *tuple* when `states=` and `DU/TU` are passed together (so pass `DU/TU` alone -- the
+  defaults already label km / km/s); `mape` needs `axis=0` for per-state numbers; and
+  `transferLSTM` leaves `fc` random, so `transfer()` routes LSTM through `transferModelAll`.
+- TEME->J2000 is **not** velocity-magnitude preserving to 1e-9 as HANDOFF 3.2 assumes: TEME
+  rotates w.r.t. GCRS at the precession rate, adding omega x r ~ 5e-8 km/s (6e-9 relative,
+  1.2e-8 on the sma). `tests/test_tle_ephem.py` uses 1e-9 on position, 1e-7 on velocity and sma.
+- The synthetic sets HANDOFF 9.1 names do not all exist: `regression/leo/450min-10000` and
+  `900min-10000` are **empty directories**. What is actually there: `450min-4000`,
+  `90min-10000`, `30min-{2000,3000,10000}`. Use `450min-4000` until R2-05 produces the
+  matched set. No metadata keys in any of them (F5), as expected.
+- astropy could not reach the IERS server here, so it fell back to bundled/predicted polar
+  motion (arcsec-level). Irrelevant against a km-level SGP4 truth, but it will print a warning.
 
 ---
 
@@ -133,3 +154,7 @@ _(none yet)_
 | 2026-09-16 | space-track `gp_history` with env-var creds | Hunter | HANDOFF §3.1 |
 | 2026-09-16 | Branch (a) is defined as the ASC procedure *as actually run* (zero-shot, F1) | Audit finding | HANDOFF §1 F1, §4 |
 | 2026-09-16 | Rollout metric added beside every teacher-forced metric | Audit finding F3 | HANDOFF §3.5, §6.1 |
+| 2026-09-17 | Shared branch-script plumbing lives in `scripts/_common.py`, not a seventh `tlv` module | Keeps rule 9 (six modules) without copying the plot set into three scripts | `scripts/_common.py` |
+| 2026-09-17 | `tlv/datasets.py` also exports `redim()` | `nonDim2Dim6` mutates its input; every caller needs the copying inverse of `nondim()` | `tlv/datasets.py` |
+| 2026-09-17 | Frame-invariance test tolerance is 1e-7 on velocity and sma, 1e-9 on position | TEME precesses w.r.t. GCRS, so \|v\| is not invariant at 1e-9 -- the spec's tolerance is unattainable and the transform is correct | `tests/test_tle_ephem.py` |
+| 2026-09-17 | qutils installed as a copy, not editable (skbuild editable install fails) | Re-run `pip install ../qutils` after each qutils edit | `README.md` |
