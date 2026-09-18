@@ -20,7 +20,7 @@ changes only. Reuse `qutils` functions. Do not fork them into this repo unless a
 | Primary task | State-vector regression (6-state ECI), as in ASC 2025 / DDDAS. Classification is out of scope for the first pass. |
 | Real-data representation | SGP4-densified TLE segments: each TLE propagated only inside its own validity window, sampled at 60 s, TEME → J2000. Truth quality is SGP4-quality (km-level). Every plot must say so. |
 | Regime | Passive (non-maneuvering) objects. **Changed 2026-09-17: the primary target is now Yamal 202 (GEO), not a LEO object** — see the target table in section 4 and the Decision Log. The synthetic source domain must be a matched GEO GMAT run; the existing GMAT-Thrust-Data LEO sets are not a source domain for a GEO target. |
-| Historical TLE source | space-track.org `gp_history`, credentials in `SPACETRACK_USER` / `SPACETRACK_PASS`. CelesTrak is a fallback for current-epoch sanity checks only. |
+| Historical TLE source | space-track.org `gp_history`, credentials in `SPACETRACK_USER` / `SPACETRACK_PASS` (from the environment or the gitignored `.env`, template in `.env.example`). CelesTrak is a fallback for current-epoch sanity checks only. |
 | Sampling | `dt = 60 s`, identical to GMAT-Thrust-Data. |
 | Frames / units | km, km/s, J2000 equatorial (GMAT `EarthMJ2000Eq`). Non-dimensionalize with `qutils.orbital.dim2NonDim6` before training (see finding F4). |
 
@@ -386,7 +386,8 @@ Order is strict. Each step ends with a runnable command and an artifact.
 **Step 0 — environment**
 1. `git clone` qutils next to this repo; `pip install -e ../qutils`; `pip install -r requirements.txt`.
 2. Point the `gmat` key of `data.yaml` at your `GMAT-Thrust-Data/data` folder.
-3. Export `SPACETRACK_USER`, `SPACETRACK_PASS`.
+3. `cp .env.example .env` and fill in `SPACETRACK_USER` / `SPACETRACK_PASS`.
+   `tlv/spacetrack.py::load_env` reads it; exported variables of the same name win.
 4. Apply the qutils fix in 8.2 (F4) first; every later number depends on it.
 
 **Step 1 — real data**

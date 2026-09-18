@@ -27,7 +27,7 @@ floor, and every teacher-forced number next to its closed-loop rollout number.
 pip install -e ../qutils          # skbuild: if the editable install fails, `pip install ../qutils`
 pip install -r requirements.txt
 $EDITOR data.yaml                 # point `gmat` at your GMAT-Thrust-Data/data folder
-export SPACETRACK_USER=... SPACETRACK_PASS=...
+cp .env.example .env              # then fill in your space-track credentials
 pytest tests/                     # 13 pass, hand-off gate skips until a dataset exists
 ```
 
@@ -74,6 +74,7 @@ One file per example run, all of them committed:
 
 | file | drives |
 |---|---|
+| [.env](.env.example) | space-track credentials (copy `.env.example`; `.env` is gitignored) |
 | [data.yaml](data.yaml) | where the GMAT data folder is |
 | [configs/targets.yaml](configs/targets.yaml) | object, window, `fetch_tles` + `build_real_dataset` |
 | [configs/branch_a.yaml](configs/branch_a.yaml) | zero-shot: synthetic source, no target training |
