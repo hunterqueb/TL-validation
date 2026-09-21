@@ -48,6 +48,13 @@ python scripts/fetch_tles.py --norad 28089 --start 2026-02-18 --stop 2026-04-08
 python scripts/build_real_dataset.py --norad 28089 --minutes 8620  --windows 8
 python scripts/build_real_dataset.py --norad 28089 --minutes 10080 --windows 4
 
+# whole-branch matrices (standard plot set written for every run)
+./scripts/run_branch_b.sh                 # M1 + M1b: 3 styles x 2 models x 3 seeds
+./scripts/run_branch_a.sh                 # M2       (needs the GMAT source domain)
+./scripts/run_branch_c.sh                 # M3       (run a and b first)
+# narrow with args or the environment: ./scripts/run_branch_b.sh asc
+#                                      SEEDS=0 MODELS=mamba ./scripts/run_branch_b.sh dddas
+
 # branch (b): from scratch on real data
 python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 8620 --windows 8 \
     --style asc --model mamba --seed 0

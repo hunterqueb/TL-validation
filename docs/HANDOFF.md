@@ -696,6 +696,17 @@ pytest tests/test_tle_ephem.py
 # Step 2  (--windows is required; it selects the dataset directory)
 python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 8620  --windows 8 --style asc   --model mamba --seed 0
 python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 10080 --windows 4 --style dddas --model mamba --seed 0
+
+# ...or run a whole branch matrix, with the standard plot set for every run:
+./scripts/run_branch_b.sh                 # 3 styles x {mamba,lstm} x 3 seeds = 18 runs
+./scripts/run_branch_a.sh                 # 6 runs  (needs the GMAT source, R2-05)
+./scripts/run_branch_c.sh                 # {full,feature} x 2 models x 3 seeds = 12 runs
+./scripts/run_branch_b.sh asc asc2        # narrow by style
+SEEDS=0 MODELS=mamba ./scripts/run_branch_c.sh full     # narrow by seed/model/mode
+./scripts/run_branch_a.sh long            # the 7-day window instead (P6-02)
+# Settings live in scripts/_common.sh and are all environment-overridable. Each script
+# checks its inputs first and stops with the command that produces a missing one; a failing
+# cell does not abort the matrix, it is listed at the end and the script exits 1.
 # Step 3 (in ~/git/GMAT-Thrust-Data)
 cp <tl-validation>/configs/gmat/gmat_28089_asc.yaml config.yaml && ./generateGMATNoThrustDataset.sh
 # Step 4/5
