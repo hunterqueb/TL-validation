@@ -12,13 +12,18 @@ targets:
       is not still doing east-west / relocation burns over the chosen window -- a maneuver
       breaks all three branches (HANDOFF section 4, the ISS case).
     period_sec: null             # ~86166 s (1436.1 min) expected from the 2026-09-17 TLE
-    # H-2: window is a placeholder until Hunter confirms it (space weather matters much less
-    # at GEO than it did for the LEO plan; TLE cadence and maneuvers are the real risks here)
+    # H-2: screened by scripts/screen_window.py over 2026-01-01..2026-09-21 (873 TLEs).
+    # Criteria, applied before any model was run: the span must hold 44.88 d of coverage
+    # (8 x 8620 min), the largest TLE gap is minimised, and no |d(sma)| step between
+    # consecutive TLEs exceeds 0.1 km (an E-W station-keeping burn is several km).
+    # Chosen span: 124 TLEs, max gap 19.0 h, max |d(sma)| 0.068 km. The old placeholder
+    # (2026-06-01) loses on both: 48.8 h gap and a 0.62 km step.
+    # Ap is not a criterion at GEO (HANDOFF 9.5 item 2).
     window:
-      start: "2026-06-01"
-      stop: "2026-07-15"
+      start: "2026-02-18"
+      stop: "2026-04-08"
       max_ap: null
-      confirmed: false
+      confirmed: false           # agent-proposed (PLAN 4.6); Hunter confirms
   secondary: null                # H-1: was "rocket body, perigee 450-550 km" -- re-scope if
                                  # the primary is now GEO (H-5)
   contaminated:                  # H-3: only to show a maneuver breaks all three branches
@@ -28,5 +33,8 @@ targets:
 
 # 5 periods at GEO is 4.99 days, so the ASC-style and 7-day windows now nearly coincide (H-6).
 windows:
-  asc:   {minutes: 7181,  n_windows: 9}    # 5 orbital periods; a 45-day span holds 9
+  # 6 periods: 1 training period + the full 5-period forecast horizon, so rollout_pos_5T_km
+  # exists instead of running off the end of the window (HANDOFF REV-02). At 5 periods the
+  # window ended 0.0002 periods short of even a 4T horizon measured from the forecast origin.
+  asc:   {minutes: 8620,  n_windows: 8}    # 6 orbital periods (period 1436.09 min)
   long:  {minutes: 10080, n_windows: 4}    # 7 days = 7.02 periods

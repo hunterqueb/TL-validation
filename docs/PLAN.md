@@ -202,6 +202,32 @@ and execution drift. F-05–F-14 track the open remedies. In particular, the cur
 metric is a 120-second rollout and `train_size=2` exposes three states. This is a documentation
 review only; no code fixes, new training results, or protocol approvals are implied.
 
+**P1 real data on real TLEs (2026-09-21, claude).** The blocker was never the code: it was
+H-2. Credentials were in `.env`, so the window was screened rather than guessed —
+`scripts/screen_window.py` over 873 TLEs (2026-01-01 .. 2026-09-21) ranks spans by coverage,
+largest TLE gap and |d(sma)| step. Yamal 202's sma spans 1.14 km in nine months, so it is
+passive over the whole search span; the chosen window is 2026-02-18 .. 2026-04-08 (124 TLEs,
+19.0 h max gap, 0.068 km max step) and the old June placeholder was the worse of the two
+(48.8 h gap, 0.62 km step). Both datasets are built and the M0 data gate passes: hand-off
+median 0.63 km / p95 2.13 km over 131 hand-offs (8620 min × 8) and 0.66 / 1.94 over 74
+(10080 min × 4). What the next agent must know:
+
+- **The old "1T" rollout number was a 120-second rollout** (REV-02) and the old scoring slice
+  re-predicted a training target (REV-04). Both are fixed at the root: the forecast origin is
+  index `train_size`, the last observed state. Any result row written before 2026-09-21 is
+  not comparable to one written after.
+- **The ASC window is 6 periods now (8620 min × 8), not 5.** A 5-period window physically
+  cannot contain a 5T horizon measured from a 1-period-in origin — it fell 0.0002 periods
+  short of even 4T. The GMAT source config moved with it (`numMinsToProp: 8620`), so R2-05
+  must be run at the new length or branch (a)/(c) will compare unequal spans.
+- **The first real numbers say what F3 predicted.** Branch (b) ASC-style, Mamba, seed 0:
+  teacher-forced position MAPE 0.18 % (inside the M1 target) but closed-loop rollout error
+  6 229 km at 1T and 71 303 km at 5T, against a hand-off consistency of ~0.5 km. Teacher
+  forcing flatters this model by four orders of magnitude. Expect the same for every branch,
+  and do not let a good MAPE column stand in for propagation.
+- astropy still cannot reach the IERS server here and falls back to bundled polar motion
+  (arcsec-level, irrelevant against km-level SGP4 truth). It prints a warning on every run.
+
 ---
 
 ## 8. Decision log (append-only)
@@ -220,3 +246,9 @@ review only; no code fixes, new training results, or protocol approvals are impl
 | 2026-09-17 | `tlv/datasets.py` also exports `redim()` | `nonDim2Dim6` mutates its input; every caller needs the copying inverse of `nondim()` | `tlv/datasets.py` |
 | 2026-09-17 | Frame-invariance test tolerance is 1e-7 on velocity and sma, 1e-9 on position | TEME precesses w.r.t. GCRS, so \|v\| is not invariant at 1e-9 -- the spec's tolerance is unattainable and the transform is correct | `tests/test_tle_ephem.py` |
 | 2026-09-17 | qutils installed as a copy, not editable (skbuild editable install fails) | Re-run `pip install ../qutils` after each qutils edit | `README.md` |
+| 2026-09-21 | TLE window is 2026-02-18 .. 2026-04-08, chosen by `scripts/screen_window.py` before any model was run | H-2 needed a screened window, not a placeholder; the criteria (coverage, TLE gap, |d(sma)| step) are recorded in `configs/targets.yaml` and reproducible from the script | `configs/targets.yaml`, HANDOFF §5 step 1, §9.6 |
+| 2026-09-21 | **ASC-style window is 6 periods (8620 min × 8), not 5 (7181 × 9)** | REV-02: horizons are measured from the forecast origin, so a 5-period window ends before even a 4T horizon and `rollout_pos_5T_km` could only ever be NaN. The training span stays at one period, so the equal-budget rule is untouched; the ASC train fraction moves 1/5 → 1/6 | `configs/targets.yaml`, `configs/branch_{a,b,c}.yaml`, `configs/gmat/gmat_28089_asc.yaml`, HANDOFF §4, §5, §9.6 |
+| 2026-09-21 | Forecast origin is the last *observed* state (index `train_size`); scoring starts at `train_size + 1` | REV-02/REV-04: `create_datasets` trains on transitions through x_{train_size-1} → x_{train_size}, so the old rollout seed (`train_size - 1`) re-predicted a training target and the old "1T" number was a 120 s rollout | `tlv/train.py`, `tlv/metrics.py`, `scripts/_common.py`, `tests/test_transfer.py` |
+| 2026-09-21 | CSV gains `window`, `handoff_n`, `origin_sec`, `tle_sha256`; `noise_floor_*` renamed `handoff_*` | REV-01/REV-09: a row has to say which window it came from and where its forecast started, and the hand-off statistic is consistency between orbit products, not an accuracy floor | `tlv/metrics.py`, `scripts/_common.py`, `scripts/summarize.py`, HANDOFF §3.6 |
+| 2026-09-21 | `scripts/screen_window.py` is a seventh script (not a seventh `tlv` module) | Rule 9 caps `tlv/`, not `scripts/`; window screening is a one-off data decision, not library code | `scripts/screen_window.py` |
+

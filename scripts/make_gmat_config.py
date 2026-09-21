@@ -41,7 +41,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--norad", type=int, required=True)
-    ap.add_argument("--minutes", type=int, default=7181)
+    ap.add_argument("--minutes", type=int, default=8620)
     ap.add_argument("--windows", type=int, default=9)
     ap.add_argument("--window-index", type=int, default=0)
     ap.add_argument("--num-runs", type=int, default=10)

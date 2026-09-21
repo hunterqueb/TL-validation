@@ -221,6 +221,7 @@ __marimo__/
 # GMAT data is not in this repo at all -- data.yaml points at it (data.yaml IS committed)
 data/
 !data/.gitkeep
+results/summary.md
 results/*.csv
 results/models/
 figures/*.pdf

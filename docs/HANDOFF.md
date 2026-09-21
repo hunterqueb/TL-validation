@@ -152,7 +152,7 @@ tl-validation/
 │   ├── targets.yaml            NORAD ids, windows, dt
 │   ├── branch_a.yaml  branch_b.yaml  branch_c.yaml
 │   └── gmat/                   GMAT-Thrust-Data schema, one per source-domain run:
-│       gmat_28089_asc.yaml  (-> regression/geo/7181min-10)
+│       gmat_28089_asc.yaml  (-> regression/geo/8620min-10)
 │       gmat_28089_long.yaml (-> regression/geo/10080min-3)
 ├── tlv/
 │   ├── __init__.py
@@ -333,9 +333,11 @@ def predict_teacher_forced(model, t, seq, train_in, test_in, train_size, test_si
 
 
 def rollout(model, seq, train_size, device):
-    """Closed-loop prediction. Feed the model its own output from index train_size onward.
+    """Closed-loop prediction from the forecast origin: the model is fed its own output.
 
-    Return (T, 6) with NaN for j < train_size. This is the honest propagation metric (F3).
+    The origin is index train_size, the *last observed state* (with lookback 1 the training
+    transitions end at x_{train_size-1} -> x_{train_size}). Return (T, 6) with NaN for
+    j <= train_size. This is the honest propagation metric (F3).
     """
 ```
 
@@ -351,12 +353,18 @@ def rollout(model, seq, train_size, device):
 - `energy_drift(seq_dim, mu, Re)` using `qutils.orbital.orbitalEnergyJ2` (two-body energy
   oscillates ~0.1 % under J2; the J2-corrected energy is the right conserved-ish quantity
   for LEO).
-- `position_error_at(pred, truth, t, periods)` → km at 1, 2, 5 periods.
-- `noise_floor(handoff_jump_km)` → median, p95.
+- `position_error_at(pred, truth, t, periods, origin)` → km at 1, 2, 5 periods **measured
+  from the forecast origin**, the last observed state (`origin=train_size`). NaN when the
+  window ends before the horizon. Window-relative horizons were the REV-02 defect.
+- `noise_floor(handoff_jump_km)` → median, p95 of the TLE hand-off jumps, **NaN when the
+  window holds no hand-off** (absent evidence, not zero uncertainty — REV-01).
+  `handoff_count()` reports how many hand-offs the statistic rests on.
 - `append_result(csv_path, row)` with fixed columns:
-  `branch, object, model, tl_mode, train_periods, epochs_src, epochs_tgt, mape_x..mape_vz,
-  rmse_pos_km, rollout_pos_1T_km, rollout_pos_5T_km, energy_drift_pct, noise_floor_med_km,
-  noise_floor_p95_km, train_s, seed`.
+  `run_id, branch, style, object, window, model, tl_mode, train_periods, epochs_src,
+  epochs_tgt, mape_x..mape_vz, rmse_pos_km, rollout_pos_1T_km, rollout_pos_5T_km,
+  energy_drift_pct, handoff_med_km, handoff_p95_km, handoff_n, origin_sec, tle_sha256,
+  train_s, seed`. `window`, `origin_sec` and `tle_sha256` make a row say which data it came
+  from and where its forecast started (REV-09).
 
 ---
 
@@ -386,9 +394,13 @@ Target objects (`configs/targets.yaml`):
 | Secondary passive LEO, lower | rocket body, perigee 450–550 km | **VERIFY** via satcat query `OBJECT_TYPE=ROCKET BODY`, `DECAY=null`, `PERIGEE 450--550` | Stronger drag; stresses F8. |
 | Contaminated (optional) | ISS | 25544 | Known reboosts. Use only to show that a maneuver breaks all three branches — not for the headline numbers. |
 
-Windows: ASC-style = 5 orbital periods = 7181 samples for Yamal 202 (4.99 days). DDDAS-style
-long-term = 7 days = 10080 samples = 7.02 periods. Both cut from the same TLE history so the
-epoch is identical. **Note (2026-09-17):** at GEO these two windows nearly coincide — for the
+Windows: ASC-style = **6 orbital periods = 8620 samples** for Yamal 202 (5.99 days): one
+training period plus the full five-period forecast horizon, so `rollout_pos_5T_km` is a
+measured number rather than a NaN off the end of the window (REV-02). At the original five
+periods the window stopped 0.0002 periods short of even a 4T horizon measured from the
+forecast origin. The training span is unchanged at one period, so the equal-budget rule is
+unaffected; only the ASC train fraction moves from 1/5 to 1/6. DDDAS-style long-term = 7 days
+= 10080 samples = 7.02 periods. Both cut from the same TLE history so the epoch is identical. **Note (2026-09-17):** at GEO these two windows nearly coincide — for the
 original LEO target they differed by 20×. The ASC-vs-DDDAS distinction is now "5 periods at
 5 epochs" vs "2 points at 50 epochs", not "hours vs a week" (open item H-6).
 
@@ -417,13 +429,20 @@ Order is strict. Each step ends with a runnable command and an artifact.
 4. Apply the qutils fix in 8.2 (F4) first; every later number depends on it.
 
 **Step 1 — real data**
-1. `python scripts/fetch_tles.py --norad 28089 --start 2026-06-01 --stop 2026-07-15`
-   → `data/tle/28089_*.tle`. Window dates are placeholders; pick a 45-day span with no
-   maneuver (GEO: a station-keeping or relocation burn, visible as a step in sma or a
-   hand-off jump outlier). Space weather matters little at 35 800 km. **VERIFY** the span.
-2. `python scripts/build_real_dataset.py --norad 28089 --minutes 7181 --windows 9`
+1. `python scripts/screen_window.py --norad 28089 --start 2026-01-01 --stop 2026-09-21`
+   ranks candidate spans by TLE cadence and by |d(sma)| steps (a GEO station-keeping or
+   relocation burn is several km; fit noise is ~0.1 km). Space weather is not a criterion at
+   35 800 km. **Done 2026-09-21:** over 873 TLEs the sma spans 1.14 km in nine months, so the
+   object is passive; the chosen span is `--start 2026-02-18 --stop 2026-04-08` (124 TLEs,
+   max gap 19.0 h, max |d(sma)| 0.068 km). The old 2026-06-01 placeholder loses on both
+   counts (48.8 h gap, 0.62 km step). `configs/targets.yaml` records the criteria.
+   Then `python scripts/fetch_tles.py --norad 28089 --start 2026-02-18 --stop 2026-04-08`.
+2. `python scripts/build_real_dataset.py --norad 28089 --minutes 8620 --windows 8`
    and `--minutes 10080 --windows 4` → two `statesArrayReal.npz` files.
-3. `pytest tests/test_tle_ephem.py`. Attach the hand-off histogram (`figures/28089-HandoffJump.png`).
+3. `pytest tests/test_tle_ephem.py`. Attach the hand-off histogram
+   (`figures/28089-<minutes>min-HandoffJump.png`). **Done 2026-09-21:** 8620 min × 8 windows,
+   hand-off median 0.629 km / p95 2.127 km over 131 hand-offs; 10080 min × 4, median
+   0.657 km / p95 1.943 km over 74. Both inside the M0 gate.
 
 **Step 2 — branch (b), real low-data** (first because it needs no synthetic data)
 1. Port `mambaCR3BP6d_DDDAS.py`: replace `ode87(...)` with `load_real(...)`, keep the training
@@ -447,7 +466,7 @@ Order is strict. Each step ends with a runnable command and an artifact.
    `fixedElements`/`epoch`/ballistic-coefficient keys of section 8.1 are written as a
    commented block: they still need the R2-01 patch, and until then the epoch is fixed at
    `20 Jul 2020 12:00:00.000` and SRPArea/Cr/DryMass are sampled at random per run (H-7).
-2. `./generateGMATNoThrustDataset.sh` with that config → `data/regression/geo/7181min-<N>` where
+2. `./generateGMATNoThrustDataset.sh` with that config → `data/regression/geo/8620min-<N>` where
    N ≥ 10 (one matched trajectory + 9 with small spreads for the multi-trajectory variant).
 3. Sanity plot: synthetic vs real for the first period, position difference < 20 km at 1 period.
    If larger, drag/space-weather mismatch dominates; record it, do not tune it away.
@@ -506,7 +525,7 @@ not a failure.
 
 | # | Milestone | Gate | Target |
 |---|---|---|---|
-| M0 | Real dataset built and validated | `pytest tests/` green; hand-off median < 2 km, p95 < 10 km; `meta.json` has TLE sha256 | 45-day span, Ap < 30 |
+| M0 | Real dataset built and validated | `pytest tests/` green; hand-off median < 2 km, p95 < 10 km; `meta.json` has TLE sha256 | 45-day span, no maneuver signature (Ap is not a GEO criterion) |
 | M1 | Branch (b) ASC-style (train 1 period, test 4) | Runs end-to-end for Mamba and LSTM, 3 seeds; plot set + CSV rows written | Mamba teacher-forced position MAPE ≤ 1 %; Mamba < LSTM on every state; rollout position error at 1 T reported |
 | M1b | Branch (b) DDDAS-style (2 points, 7 days) | Same as M1 on the 7-day window | Mamba energy drift < 1 % over 7 days (teacher-forced); rollout reported |
 | M2 | Branch (a) zero-shot | Source-domain plots match ASC source quality (Mamba position MAPE ≤ 0.1 % on synthetic); real-target numbers written with noise floor | Zero-shot degradation quantified (expected large); Mamba < LSTM |
@@ -669,18 +688,19 @@ artifact exists, and its test (if any) passes. Do not start branch (c) before M1
 pip install -e ../qutils && pip install -r requirements.txt
 $EDITOR data.yaml                 # point `gmat` at GMAT-Thrust-Data/data
 # Step 1
-python scripts/fetch_tles.py --norad 28089 --start 2026-06-01 --stop 2026-07-15
-python scripts/build_real_dataset.py --norad 28089 --minutes 7181 --windows 9
+python scripts/screen_window.py --norad 28089 --start 2026-01-01 --stop 2026-09-21
+python scripts/fetch_tles.py --norad 28089 --start 2026-02-18 --stop 2026-04-08
+python scripts/build_real_dataset.py --norad 28089 --minutes 8620 --windows 8
 python scripts/build_real_dataset.py --norad 28089 --minutes 10080 --windows 4
 pytest tests/test_tle_ephem.py
-# Step 2
-python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 7181 --style asc   --model mamba --seed 0
-python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 10080 --style dddas --model mamba --seed 0
+# Step 2  (--windows is required; it selects the dataset directory)
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 8620  --windows 8 --style asc   --model mamba --seed 0
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 10080 --windows 4 --style dddas --model mamba --seed 0
 # Step 3 (in ~/git/GMAT-Thrust-Data)
-cp <tl-validation>/configs/gmat_28089.yaml config.yaml && ./generateGMATNoThrustDataset.sh
+cp <tl-validation>/configs/gmat/gmat_28089_asc.yaml config.yaml && ./generateGMATNoThrustDataset.sh
 # Step 4/5
-python scripts/branch_a_zero_shot.py --norad 28089 --minutes 7181 --model mamba --seed 0
-python scripts/branch_c_transfer.py  --norad 28089 --minutes 7181 --model mamba --tl full --seed 0
+python scripts/branch_a_zero_shot.py --norad 28089 --minutes 8620 --windows 8 --model mamba --seed 0
+python scripts/branch_c_transfer.py  --norad 28089 --minutes 8620 --windows 8 --model mamba --tl full --seed 0
 # Step 7
 python scripts/summarize.py
 ```
@@ -692,6 +712,30 @@ comparison, transfer-update regression test, and separate teacher-forced/rollout
 are strengths worth retaining. The findings below remain open. Proposed changes require
 protocol reconciliation and, where applicable, implementation and validation before closure.
 Follow-up IDs are tracked in [TASKS.md](TASKS.md#review-follow-ups-2026-09-20).
+
+> **Implementation status — 2026-09-21 (claude).** Three of the defects named below are
+> fixed in code and covered by tests; the rest of each finding stays open.
+>
+> - **REV-02 / F-06 (fixed).** `position_error_at` takes the forecast origin and measures
+>   horizons from `t_sec[origin]`; `rollout` seeds from the last observed state, index
+>   `train_size`, instead of `train_size - 1`; `_common.evaluate` scores from `train_size + 1`.
+>   The ASC window is now 6 periods (8620 min) so both 1T and 5T fall inside it.
+>   `tests/test_transfer.py::test_horizons_are_measured_from_the_forecast_origin` guards it.
+>   Still open: paired forecast origins *across branches* are not yet asserted by a test.
+> - **REV-04 / F-08 (partly fixed).** The training-target overlap is gone: with `train_size`
+>   transitions the last observed state is index `train_size` and scoring starts strictly
+>   after it. Still open: the observed-state budget is not yet written into the CSV, and
+>   target information consumed by the synthetic initial condition is not declared.
+> - **REV-01 / F-05 (partly fixed).** `noise_floor` returns NaN rather than 0.0 when a window
+>   holds no hand-off, `handoff_count` and the `handoff_n` column record the evidence, and
+>   the figure and summary call it a hand-off *consistency* statistic, not an accuracy floor.
+>   Still open: TLE age is not tracked, and the M0 thresholds are still unjustified for GEO.
+> - **REV-09 / F-13 (partly fixed).** Rows carry `window`, `origin_sec` and `tle_sha256`;
+>   figure names carry seed and transfer mode; `summarize.py` groups by object and keeps the
+>   last row per (config, window, seed) so a repeated run cannot reweight a median.
+>   Still open: no run manifest, and no dependency/checkpoint identity.
+> - **REV-10 / F-14 (partly fixed).** The quick-reference commands take `--windows`, use the
+>   screened window, and point at the committed GMAT config path.
 
 ### REV-01 Reference data and uncertainty
 

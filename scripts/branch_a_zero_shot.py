@@ -15,7 +15,7 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from _common import datasets_for, evaluate, load_window, report, set_seed
+from _common import datasets_for, evaluate, load_window, provenance, report, set_seed
 from qutils.ml.utils import getDevice
 from qutils.orbital import ECI2OE
 from tlv import datasets as ds
@@ -45,7 +45,7 @@ def train_source(cfg, norad, model_name, seed, device, plots=True, prefix=None):
     train_s = fit(model, datasets, cfg["epochs_src"], lr=cfg["lr"])
 
     src_row = evaluate(model, seq_nd, seq_dim, t_syn, period_syn, train_size,
-                       np.zeros_like(t_syn), device, prefix or f"{norad}-a",
+                       np.zeros_like(t_syn), device, prefix or f"{norad}-a-{model_name}-s{seed}",
                        model_name.capitalize(), domain="SourceDomain", plots=plots)
     print(f"source domain ({src['minutes']}min-{src['n_sys']} run {src['index']}): "
           f"position MAPE {np.mean([src_row['mape_x'], src_row['mape_y'], src_row['mape_z']]):.4g} % "
@@ -82,11 +82,12 @@ def main():
     train_size = ds.split_periods(w["seq"], w["period_sec"], 1)
     seq_nd, _ = datasets_for(w["seq"], train_size, device)
     row = evaluate(model, seq_nd, w["seq"], w["t_sec"], w["period_sec"], train_size,
-                   w["handoff"], device, f"{a.norad}-a", a.model.capitalize(),
+                   w["handoff"], device, f"{a.norad}-a-{a.model}-s{a.seed}",
+                   a.model.capitalize(),
                    domain="TargetDomain", plots=not a.no_plots)
     row.update(branch="a", style=a.style, object=a.norad, model=a.model, tl_mode="none",
                train_periods=0, epochs_src=cfg["epochs_src"], epochs_tgt=0,
-               train_s=train_s, seed=a.seed)
+               train_s=train_s, seed=a.seed, **provenance(w))
     report(row, a.csv)
 
 

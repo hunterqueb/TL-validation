@@ -35,16 +35,23 @@ def predict_teacher_forced(model, t, seq, train_in, test_in, train_size, test_si
 
 
 def rollout(model, seq, train_size, device, seq_length=1):
-    """Closed-loop prediction: the model is fed its own output from train_size onward.
+    """Closed-loop prediction from the forecast origin: the model is fed its own output.
 
-    Return (T, 6) with NaN for j < train_size. This is the honest propagation metric (F3).
+    The forecast origin is index `train_size`, the last *observed* state: with lookback 1,
+    create_datasets trains on the transitions x_0->x_1 ... x_{train_size-1}->x_{train_size},
+    so state train_size is a training target and the first unseen state is train_size + 1
+    (HANDOFF REV-02/REV-04). Seeding one step earlier re-predicts a training target and
+    throws the last observation away.
+
+    Return (T, 6) with NaN for j <= train_size. This is the honest propagation metric (F3).
     """
     seq = np.asarray(seq, dtype=float)
     out = np.full_like(seq, np.nan)
     model.eval()
-    x = torch.tensor(seq[train_size - seq_length:train_size][None, :, :]).double().to(device)
+    origin = train_size
+    x = torch.tensor(seq[origin + 1 - seq_length:origin + 1][None, :, :]).double().to(device)
     with torch.no_grad():
-        for j in range(train_size, len(seq)):
+        for j in range(origin + 1, len(seq)):
             y = model(x)[:, -1, :]
             out[j] = y.cpu().numpy()[0]
             x = torch.cat([x[:, 1:, :], y[:, None, :]], dim=1)

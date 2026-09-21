@@ -71,7 +71,7 @@ def main():
                      "truth = SGP4 from space-track TLEs", fontsize=10)
         ax.legend()
         fig.tight_layout()
-        path = pathlib.Path("figures") / f"{a.norad}-HandoffJump.png"
+        path = pathlib.Path("figures") / f"{a.norad}-{a.minutes}min-HandoffJump.png"
         path.parent.mkdir(exist_ok=True)
         fig.savefig(path, dpi=150)
         print(f"wrote {path}")

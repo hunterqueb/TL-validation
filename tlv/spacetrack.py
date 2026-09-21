@@ -72,6 +72,9 @@ def fetch_tle_history(norad, start, stop, cache_dir="data/tle"):
     if not text.strip():
         raise RuntimeError(f"space-track returned no TLEs for {norad} in {start}--{stop}")
 
+    # space-track sends CRLF; read_text() translates it back to LF, so hash and store the
+    # normalized text or the sha256 in meta.json will not match the file on disk.
+    text = text.replace("\r\n", "\n")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)
     return text

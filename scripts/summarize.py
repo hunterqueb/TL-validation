@@ -11,7 +11,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 MAPE = ["mape_x", "mape_y", "mape_z", "mape_vx", "mape_vy", "mape_vz"]
 EXTRA = ["rollout_pos_1T_km", "rollout_pos_5T_km", "rmse_pos_km", "energy_drift_pct"]
-KEYS = ["branch", "style", "model", "tl_mode"]
+KEYS = ["object", "branch", "style", "model", "tl_mode"]
+RUN = KEYS + ["window", "seed"]    # one result per configuration, not per rerun
 
 
 def main():
@@ -24,6 +25,12 @@ def main():
     if not files:
         raise SystemExit(f"no {a.results}/branch_*.csv yet")
     df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
+    # Append-only CSVs hold every rerun. Aggregating them all lets one repeated run
+    # reweight a median (HANDOFF REV-09); keep the last row per configuration instead.
+    n_all = len(df)
+    df = df.drop_duplicates(subset=RUN, keep="last")
+    if len(df) < n_all:
+        print(f"{n_all - len(df)} superseded rerun(s) dropped; last row per {RUN} kept")
 
     med = df.groupby(KEYS)[MAPE + EXTRA].median()
     iqr = df.groupby(KEYS)[MAPE + EXTRA].quantile(.75) - df.groupby(KEYS)[MAPE + EXTRA].quantile(.25)
@@ -32,9 +39,9 @@ def main():
     lines = ["# Summary", "",
              "Truth = SGP4 from space-track TLEs. Every number is the median over seeds; "
              "+- is the inter-quartile range. Rows with fewer than 3 seeds are flagged (!).",
-             "", "| branch | style | model | tl | seeds | " +
+             "", "| object | branch | style | model | tl | seeds | " +
              " | ".join(MAPE) + " | rollout 1T (km) | rollout 5T (km) | energy drift (%) |",
-             "|" + "---|" * (5 + len(MAPE) + 3)]
+             "|" + "---|" * (len(KEYS) + 1 + len(MAPE) + 3)]
     for key in med.index:
         n = int(seeds.loc[key])
         flag = "" if n >= 3 else " (!)"
@@ -43,10 +50,14 @@ def main():
                   ["rollout_pos_1T_km", "rollout_pos_5T_km", "energy_drift_pct"]]
         lines.append("| " + " | ".join(list(map(str, key)) + [f"{n}{flag}"] + cells) + " |")
 
-    nf = df[["noise_floor_med_km", "noise_floor_p95_km"]].median()
-    lines += ["", f"**Noise floor** (TLE hand-off jump): median "
-                  f"{nf['noise_floor_med_km']:.3g} km, p95 {nf['noise_floor_p95_km']:.3g} km. "
-                  "No error above is meaningful below this."]
+    nf = df[["handoff_med_km", "handoff_p95_km", "handoff_n"]].median()
+    lines += ["", f"**TLE hand-off consistency**: median {nf['handoff_med_km']:.3g} km, "
+                  f"p95 {nf['handoff_p95_km']:.3g} km over {nf['handoff_n']:.0f} hand-offs "
+                  "(median across runs). Successive TLEs disagree by this much, so errors "
+                  "at or below it say nothing about a model. It is a consistency statistic "
+                  "between orbit products, not a calibrated accuracy floor (REV-01).",
+              "", "Rollout horizons are measured from the forecast origin, the last "
+                  "observed state (REV-02)."]
 
     out = pathlib.Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)

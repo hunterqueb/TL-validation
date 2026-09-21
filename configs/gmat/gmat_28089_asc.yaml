@@ -1,6 +1,6 @@
 # Matched synthetic source domain for Yamal 202 (NORAD 28089) -- ASC-style window.
 # Copy to GMAT-Thrust-Data/config.yaml and run ./generateGMATNoThrustDataset.sh
-#   -> data/regression/geo/7181min-10/statesArrayNoThrust.npz
+#   -> data/regression/geo/8620min-10/statesArrayNoThrust.npz
 # which is what configs/branch_a.yaml and configs/branch_c.yaml load as their source.
 #
 # Elements are the osculating J2000 elements of Yamal 202 at the 2026-09-17 TLE epoch
@@ -13,7 +13,8 @@
 # That 20 km is the effective SMA spread for runs 1..9 (the plan asked for 5 km).
 
 orbit_type: geo
-numMinsToProp: 7181     # 5 orbital periods (period 1436.2 min); dt is fixed at 60 s
+numMinsToProp: 8620     # 6 orbital periods (period 1436.09 min); dt is fixed at 60 s
+                        # = 1 training period + the 5-period forecast horizon (REV-02)
 num_runs: 10            # run 0 + 9 neighbours; doubles as the P3-02 source bank
 
 lowerAlt: 35767.502     # km, periapsis altitude above R = 6378 km (r_p = 42145.5 km)
@@ -36,8 +37,8 @@ chemThrust: 10
 chemThrustStd: 0
 elecThrust: 0.1
 elecThrustStd: 0
-chemThrustMin: 1436     # ~20 % duty cycle of numMinsToProp, as in the example config
-elecThrustMin: 5744     # ~80 %
+chemThrustMin: 1724     # ~20 % duty cycle of numMinsToProp, as in the example config
+elecThrustMin: 6896     # ~80 %
 chemPropTimeStd: 0
 elecPropTimeStd: 0
 

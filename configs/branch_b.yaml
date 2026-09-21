@@ -1,10 +1,10 @@
 # Branch (b) real low-data, from scratch. Two styles.
 branch: b
 styles:
-  asc:   {train_periods: 1, train_size: null, epochs: 5,  d_conv: 4,  minutes: 7181}
+  asc:   {train_periods: 1, train_size: null, epochs: 5,  d_conv: 4,  minutes: 8620}
   dddas: {train_periods: null, train_size: 2, epochs: 50, d_conv: 16, minutes: 10080}
   # equal-budget row for M3: same as asc, 2 epochs (P2-07)
-  asc2:  {train_periods: 1, train_size: null, epochs: 2,  d_conv: 4,  minutes: 7181}
+  asc2:  {train_periods: 1, train_size: null, epochs: 2,  d_conv: 4,  minutes: 8620}
 epochs_src: 0
 tl_mode: none
 lr: 0.001

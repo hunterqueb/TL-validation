@@ -6,7 +6,8 @@ Agents edit this file. Rules are in `PLAN.md` §4. Specs are in `HANDOFF.md` (se
 **Open items owned by Hunter** (from `HANDOFF.md` §9.5): `H-1` secondary object · `H-2` TLE window
 · `H-3` ISS case in/out · `H-4` publish corrected CR3BP tables
 
-Last updated: 2026-09-17 (claude: P0, R1, P1 code, P2-01..03, P5-01, R2-03; target changed to Yamal 202)
+Last updated: 2026-09-21 (claude: P1-02/06/07/08 on real space-track data, M0 data gate green;
+forecast-origin and hand-off-statistic fixes for F-06/F-08/F-05/F-13/F-14; ASC window 7181->8620)
 
 Review annotations added: 2026-09-20 (codex). Existing completion logs are historical;
 they do not establish resolution of [HANDOFF §10](HANDOFF.md#10-plan-review-2026-09-20).
@@ -18,7 +19,7 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 
 | Milestone | Gate (HANDOFF §6.2) | Status | Reviewed by |
 |---|---|---|---|
-| M0 real dataset validated | tests green; hand-off med < 2 km, p95 < 10 km; TLE sha256 in meta | blocked (H-2: creds + confirmed window; all code ready) | |
+| M0 real dataset validated | tests green; hand-off med < 2 km, p95 < 10 km; TLE sha256 in meta | awaiting_review (data built and gate green; H-2 window is agent-screened, Hunter confirms) | |
 | M1 branch (b) ASC-style | Mamba+LSTM × 3 seeds; plot set + CSV rows | todo | |
 | M1b branch (b) DDDAS-style 7-day | same, 7-day window | todo | |
 | M2 branch (a) zero-shot | source MAPE ≤ 0.1 % synthetic; real rows with noise floor | todo | |
@@ -63,7 +64,7 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 | R2-02 | Add metadata keys to every `np.savez` in that file: `elements (N,6)`, `phys (N,5)`, `epoch (str)`, `dt` | todo | | R2-01 | `np.load(...).files` shows the 5 keys; `convertToOE.py` and `combineDatasets.py` still run on the new file | |
 | R2-03 | Write `configs/gmat/gmat_28089*.yaml` generator: `scripts/make_gmat_config.py --norad 28089` reads the first real state of the ASC window, `ECI2OE` → fixed elements (deg), epoch string in GMAT `UTCGregorian` format, `Cd*A/m = 2*Bstar/0.1570` clamped to [0.005, 0.05], `DryMass 80`, `Cd 2.2`, `DragArea = CdAm*80/2.2`; `num_runs: 10`, spreads: SMA 5 km, ECC 0.0005, INC/RAAN/AOP/TA 0.1 deg for runs ≥ 1 (run 0 exact — implement as `_spread` applied only when `i > 0`) | blocked | claude | P1-06, R2-01 | config file written; raw and clamped B* logged in `meta` comment line |2026-09-17 claude: scripts/make_gmat_config.py written (ECI2OE -> fixed elements, B* -> Cd*A/m clamped to [0.005, 0.05]); needs the real dataset to read the first state -- blocked_by H-2 (window) / P1-06<br>2026-09-17 claude: DONE differently -- emits the schema the generator reads today (lowerAlt/upperAlt pin SMA, existing *_spread keys); section 8.1 keys are a commented block. Both example configs hand-written and committed under configs/gmat/, verified byte-comparable to the generator's output on a fabricated 28089 window |
 | R2-04 | *(optional, M4)* Space-weather fields `F107`, `F107A`, `MagneticIndex` on `Atmos` from CelesTrak SW-All for the epoch | todo | | R2-01 | flag `--space-weather` in the generate script; default off | |
-| R2-05 | **Hunter-run:** `cp configs/gmat/gmat_28089_asc.yaml ~/git/GMAT-Thrust-Data/config.yaml && ./generateGMATNoThrustDataset.sh` → `data/regression/geo/7181min-10`. Config is committed, so this no longer waits on R2-03 | todo | | R2-02, R2-03 | npz with 5 keys exists; `awaiting_review` until Hunter confirms the run | |
+| R2-05 | **Hunter-run:** `cp configs/gmat/gmat_28089_asc.yaml ~/git/GMAT-Thrust-Data/config.yaml && ./generateGMATNoThrustDataset.sh` → `data/regression/geo/8620min-10`. Config is committed, so this no longer waits on R2-03 | todo | | R2-02, R2-03 | npz with 5 keys exists; `awaiting_review` until Hunter confirms the run | |
 
 ## R3 — pendulumRNN F1 fix (HANDOFF §8.3) — lane D
 
@@ -79,14 +80,14 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 | ID | Task | Status | Owner | Depends on | DoD | Log |
 |---|---|---|---|---|---|---|
 | P1-01 | `tlv/spacetrack.py::fetch_tle_history` with disk cache, env-var creds, single query per (norad, start, stop); `scripts/fetch_tles.py` CLI | done | claude | P0-02 | second call returns from cache with no HTTP; cache file sha256 printed |2026-09-17 claude: tlv/spacetrack.py + scripts/fetch_tles.py; cache-hit path exercised offline, 429 backs off 60 s once<br>2026-09-18 claude: credentials come from the environment or a gitignored .env (.env.example committed); load_env + credentials() in spacetrack.py, tests/test_spacetrack.py covers parsing, env precedence, the unset message and the cache-hit-no-network rule |
-| P1-02 | Choose the 45-day window (placeholder `2026-06-01 … 2026-07-15`): check CelesTrak SW-All, require Ap < 30 every day; record the window and max Ap in `configs/targets.yaml` | blocked | | P1-01 | blocked_by H-2 until Hunter confirms; agent proposes a window and logs it | |
+| P1-02 | Choose the 45-day window. **Criteria changed for GEO:** Ap is irrelevant at 35 800 km; screen on TLE coverage, largest TLE gap and |d(sma)| step instead (`scripts/screen_window.py`) | awaiting_review | claude | P1-01 | agent proposes a window and logs it; Hunter confirms (H-2) |2026-09-21 claude: screened 873 TLEs over 2026-01-01..2026-09-21. sma spans 1.14 km in 9 months -> object is passive, no burn signature. Chosen: **2026-02-18 .. 2026-04-08**, 124 TLEs, max gap 19.0 h, max \|d(sma)\| 0.068 km. The old 2026-06-01 placeholder is worse on both (48.8 h gap, 0.62 km step). Criteria recorded in configs/targets.yaml; `confirmed: false` until Hunter signs off |
 | P1-03 | `tlv/tle_ephem.py::parse_tles`, `segment_ephemeris` (propagate each TLE epoch→next epoch at 60 s; `tle_index`, `jump_km` at hand-offs) | done | claude | P0-02 | unit test P1-08 green |2026-09-17 claude: segment_ephemeris uses one uniform 60 s grid and the most recent TLE per sample; epochs-jd0 cancellation needs a 0.1 ms tie-break nudge, see comment |
 | P1-04 | `tlv/tle_ephem.py::teme_to_j2000` via astropy `TEME→GCRS`; compute `period_sec` from mean motion of the first TLE and write it to `configs/targets.yaml` | done | claude | P1-03 | invariance test P1-08 green; `period_sec` ≈ 86166 s for Yamal 202 (checked against the 2026-09-17 TLE) |2026-09-17 claude: teme_to_j2000 via astropy TEME->GCRS; period_sec from no_kozai. DEVIATION: period_sec is written to the dataset meta.json, not configs/targets.yaml -- it belongs to the TLE set, and targets.yaml is a hand-edited file |
 | P1-05 | `tlv/datasets.py`: `load_synthetic`, `load_real`, `nondim` (copies; explicit DU/TU from qutils constants), `split_periods`, `nearest_synthetic` | done | claude | P1-04, R1-01 | `tests/test_datasets.py` green (shapes, roundtrip, split) |2026-09-17 claude: load_synthetic/load_real/nondim/redim/split_periods/nearest_synthetic; tests green |
-| P1-06 | `tlv/tle_ephem.py::to_windows`, `write_real_npz` with all keys of HANDOFF §2 + `meta.json`; `scripts/build_real_dataset.py` CLI | blocked | claude | P1-03, P1-04 | `data/real/28089/7181min-9/statesArrayReal.npz` and `10080min-4/` exist with the 6 keys |2026-09-17 claude: code written (to_windows, write_real_npz, scripts/build_real_dataset.py); artifact needs space-track creds and the confirmed window -- blocked_by H-2 (window) / P1-06 |
-| P1-07 | Hand-off histogram figure `figures/28089-HandoffJump.png` + median/p95 in `meta.json` | blocked | claude | P1-06 | median < 2 km, p95 < 10 km; if not, log and go to PLAN §6 risk 1 |2026-09-17 claude: code written inside build_real_dataset.py (histogram + median/p95 in meta.json + M0 gate warning); artifact needs the dataset -- blocked_by H-2 (window) / P1-06 |
-| P1-08 | `tests/test_tle_ephem.py`: SGP4 self-check vs bundled `SGP4-VER.TLE`/`tcppver.out` (1e-6 km); `| done | claude |v|,a` invariance under frame rotation (1e-9 rel); hand-off statistics gate | todo | | P1-03, P1-04 | `pytest tests/test_tle_ephem.py` green |2026-09-17 claude: pytest tests/test_tle_ephem.py: 4 passed, 1 skipped. TOLERANCE CHANGED: velocity and sma at 1e-7, not 1e-9 -- TEME precesses w.r.t. GCRS (omega x r ~ 5e-8 km/s). Position stays 1e-9 |
-| P1-09 | Milestone M0 → `awaiting_review` (human data-quality check of P1-07 figure) | todo | | P1-06, P1-07, P1-08 | | |
+| P1-06 | `tlv/tle_ephem.py::to_windows`, `write_real_npz` with all keys of HANDOFF §2 + `meta.json`; `scripts/build_real_dataset.py` CLI | done | claude | P1-03, P1-04 | `data/real/28089/8620min-8/statesArrayReal.npz` and `10080min-4/` exist with the 6 keys |2026-09-21 claude: both built from the screened window. 8620min-8 [8,8620,6], 10080min-4 [4,10080,6], 134 TLEs, 69622 samples. NOTE the ASC set is 8620min-8, not 7181min-9 -- see the decision log<br>2026-09-17 claude: code written (to_windows, write_real_npz, scripts/build_real_dataset.py); artifact needs space-track creds and the confirmed window -- blocked_by H-2 (window) / P1-06 |
+| P1-07 | Hand-off histogram figure `figures/28089-<minutes>min-HandoffJump.png` + median/p95/count in `meta.json` | done | claude | P1-06 | median < 2 km, p95 < 10 km; if not, log and go to PLAN §6 risk 1 |2026-09-21 claude: GATE PASSES. 8620min-8: median 0.629 km, p95 2.127 km, 131 hand-offs. 10080min-4: 0.657 / 1.943 over 74. One figure per dataset now (the two builds used to overwrite each other)<br>2026-09-17 claude: code written inside build_real_dataset.py (histogram + median/p95 in meta.json + M0 gate warning); artifact needs the dataset -- blocked_by H-2 (window) / P1-06 |
+| P1-08 | `tests/test_tle_ephem.py`: SGP4 self-check vs bundled `SGP4-VER.TLE`/`tcppver.out` (1e-6 km); \|v\|, a invariance under frame rotation (1e-7 rel, see decision log); hand-off statistics gate | done | claude | P1-03, P1-04 | `pytest tests/test_tle_ephem.py` green |2026-09-17 claude: pytest tests/test_tle_ephem.py: 4 passed, 1 skipped. TOLERANCE CHANGED: velocity and sma at 1e-7, not 1e-9 -- TEME precesses w.r.t. GCRS (omega x r ~ 5e-8 km/s). Position stays 1e-9 |
+| P1-09 | Milestone M0 → `awaiting_review` (human data-quality check of P1-07 figure) | awaiting_review | claude | P1-06, P1-07, P1-08 | |2026-09-21 claude: `pytest tests/` 20 passed (the hand-off gate no longer skips -- it runs against both real datasets). Hunter: check figures/28089-8620min-HandoffJump.png and confirm the window in configs/targets.yaml |
 
 ## P2 — Branch (b): real low-data (HANDOFF §4, §5 step 2)
 
@@ -95,7 +96,7 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 | P2-01 | `tlv/models.py::return_model`, `transfer(mode)` per HANDOFF §3.4 | done | claude | P0-04 | `torchinfo.summary` param counts: Mamba ≈ 906 (d_conv 4) / ≈ 1050 (d_conv 16), LSTM 4746 — matches ASC/DDDAS tables |2026-09-17 claude: torchinfo param counts match the papers exactly: Mamba 906 (d_conv 4) / 1050 (d_conv 16), LSTM 4746 |
 | P2-02 | `tlv/train.py::fit` (wraps `qutils.ml.regression.trainModel`, Adam, returns seconds), `predict_teacher_forced`, `rollout` (closed loop from `train_size`, NaN before) | done | claude | P2-01 | `rollout` on a constant sequence returns that constant; shape `(T,6)` |2026-09-17 claude: fit()/predict_teacher_forced()/rollout(); rollout on an identity model reproduces the last training state (tests/test_transfer.py) |
 | P2-03 | `tlv/metrics.py`: `energy_drift` (`orbitalEnergyJ2`), `position_error_at`, `noise_floor`, `append_result` with the fixed column list of HANDOFF §3.6 + `run_id`, `branch`, `style` | done | claude | P1-05 | CSV header matches HANDOFF §3.6 exactly; a dummy row appends |2026-09-17 claude: CSV header = HANDOFF 3.6 columns + run_id/branch/style; append_result rejects unknown columns; plot_rollout_error draws the noise-floor band |
-| P2-04 | `scripts/branch_b_real_lowdata.py --style asc`: port of ASC source half on real data (train 1 period, 5 epochs, test 4 periods); standard plot set (HANDOFF §6.1) incl. rollout-vs-noise-floor figure; CSV row | blocked | claude | P2-02, P2-03, P1-09 | seed 0 Mamba run completes; 5 figures in `figures/28089-b-*`; row in `results/branch_b.csv` |2026-09-17 claude: scripts/branch_b_real_lowdata.py written and exercised end to end on a fabricated TLE history; needs the real dataset for a real row -- blocked_by H-2 (window) / P1-06 |
+| P2-04 | `scripts/branch_b_real_lowdata.py --style asc`: port of ASC source half on real data (train 1 period, 5 epochs, test the remaining 5); standard plot set (HANDOFF §6.1) incl. rollout-vs-hand-off figure; CSV row | done | claude | P2-02, P2-03, P1-09 | seed 0 Mamba run completes; 5 figures in `figures/28089-b-*`; row in `results/branch_b.csv` |2026-09-21 claude: seed 0 Mamba on real data: teacher-forced position MAPE 0.178 %, rollout 6229 km at 1T / 71303 km at 5T, hand-off med 0.53 / p95 1.16 km (n=14). 5 figures + 1 row written. The rollout/teacher-forced gap is 4 orders of magnitude -- F3 exactly<br>2026-09-17 claude: scripts/branch_b_real_lowdata.py written and exercised end to end on a fabricated TLE history; needs the real dataset for a real row -- blocked_by H-2 (window) / P1-06 |
 | P2-05 | Run matrix `{mamba, lstm} × {0,1,2}` for `--style asc` | todo | | P2-04 | 6 rows; median Mamba position MAPE logged here | |
 | P2-06 | `--style dddas` (train_size 2, 50 epochs, d_conv 16) on the 7-day window; run matrix | todo | | P2-04 | 6 rows in `results/branch_b.csv` with `style=dddas`; energy-drift figure over 7 days | |
 | P2-07 | Equal-budget rows for M3: `--style asc --epochs 2` (from-scratch, 2 epochs on 1 period), matrix | todo | | P2-05 | 6 rows with `epochs_tgt=2`, `tl_mode=none` | |
@@ -105,7 +106,7 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 
 | ID | Task | Status | Owner | Depends on | DoD | Log |
 |---|---|---|---|---|---|---|
-| P3-01 | `scripts/check_matched_source.py`: load `<gmat>/regression/geo/7181min-10` run 0 (`<gmat>` = the data.yaml path) and real window 0; align `t_j` (GMAT `(j+1)dt` vs real `j·dt`, HANDOFF F5); plot position difference vs time for 1 period; print gap at 1 T | todo | | R2-05, P1-06 | figure `figures/28089-SynthVsReal-1T.png`; gap logged; if > 20 km write the PLAN §6 risk-2 note, do not tune | |
+| P3-01 | `scripts/check_matched_source.py`: load `<gmat>/regression/geo/8620min-10` run 0 (`<gmat>` = the data.yaml path) and real window 0; align `t_j` (GMAT `(j+1)dt` vs real `j·dt`, HANDOFF F5); plot position difference vs time for 1 period; print gap at 1 T | todo | | R2-05, P1-06 | figure `figures/28089-SynthVsReal-1T.png`; gap logged; if > 20 km write the PLAN §6 risk-2 note, do not tune | |
 | P3-02 | *(optional)* Multi-trajectory bank: `nearest_synthetic` over a GEO bank to pick 9 neighbours of run 0 by `[a,e,i]`; save index list to `configs/source_bank_28089.yaml`. **Was `regression/leo/450min-10000`; there is no GEO bank, so this needs a GMAT run of its own now (H-5)** | blocked | | P1-05, P0-05 | list of 9 indices with distances | |
 
 ## P4 — Branch (a): zero-shot (HANDOFF §5 step 4)
@@ -161,16 +162,16 @@ Reconcile the protocol in HANDOFF before implementing a changed experimental con
 
 | ID | Review / affected tasks | Proposed work | Status | Owner | Closure evidence |
 |---|---|---|---|---|---|
-| F-05 | REV-01; P1-07, P2-03, M0 | Correct reference-data and uncertainty claims; track hand-off count/TLE age; distinguish absent from zero-valued hand-offs | todo | | Consistent terminology, justified quality criteria, and validated missing-evidence handling |
-| F-06 | REV-02; P2-02/P2-03, P5-05, P6 | Define common forecast origin and elapsed horizons; fix coverage and endpoint handling | todo | | Timestamp tests show 1T is a full period after the final observation, with all requested endpoints present |
+| F-05 | REV-01; P1-07, P2-03, M0 | Correct reference-data and uncertainty claims; track hand-off count/TLE age; distinguish absent from zero-valued hand-offs | in_progress | claude | Consistent terminology, justified quality criteria, and validated missing-evidence handling |
+| F-06 | REV-02; P2-02/P2-03, P5-05, P6 | Define common forecast origin and elapsed horizons; fix coverage and endpoint handling | in_progress | claude | Timestamp tests show 1T is a full period after the final observation, with all requested endpoints present |
 | F-07 | REV-03; R2-01–R2-03, P3-01 | Produce exact initial state/shared epoch and correct anomaly/force metadata before accepting matched GMAT data | todo | | Run-zero state/time alignment verified and discrepancy components documented |
-| F-08 | REV-04; P2-06/P2-07, P5 | Specify observed states versus transitions, remove training-target overlap, and declare target information used for source construction | todo | | Auditable sample budget and tests that scoring starts strictly after the final observed state |
+| F-08 | REV-04; P2-06/P2-07, P5 | Specify observed states versus transitions, remove training-target overlap, and declare target information used for source construction | in_progress | claude | Auditable sample budget and tests that scoring starts strictly after the final observed state |
 | F-09 | REV-05; P2-05, P4-02, P5-03, P7 | Preselect development/held-out windows and paired seed/window comparisons | todo | | Frozen window protocol and separate reporting of seed/window variability and overlap |
 | F-10 | REV-06; P2-03, P7 | Add physical/simple baselines and prioritize position/velocity errors over MAPE and energy diagnostics | todo | | Baselines share forecast origins and available information; primary metrics are specified before the matrix |
 | F-11 | REV-07; M2/M3, PLAN §1–§2 | Replace success-conditioned gates with validity gates and a neutral research question | todo | | Protocol permits complete reporting of poor fits and negative transfer |
 | F-12 | REV-08; P2-01, HANDOFF §4 | Clarify length-one state-map interpretation and evaluate a feed-forward comparator | todo | | Architecture claims match the actual context/state policy; comparator budget documented |
-| F-13 | REV-09; P4-03, P7-01/P7-02 | Add run provenance, unique artifacts, compatible grouping, and a deterministic rerun policy | todo | | Object/window/config identities survive to summary; duplicate runs cannot silently reweight results |
-| F-14 | REV-10; P0, P1-02/P1-08, P2-07, P6, HANDOFF §9.6 | Reconcile GEO instructions, actual coverage, CLI examples, task status/table formatting, and proposed dependency changes | todo | | Active commands/requirements agree; code-written and data-validated states are distinct |
+| F-13 | REV-09; P4-03, P7-01/P7-02 | Add run provenance, unique artifacts, compatible grouping, and a deterministic rerun policy | in_progress | claude | Object/window/config identities survive to summary; duplicate runs cannot silently reweight results |
+| F-14 | REV-10; P0, P1-02/P1-08, P2-07, P6, HANDOFF §9.6 | Reconcile GEO instructions, actual coverage, CLI examples, task status/table formatting, and proposed dependency changes | in_progress | claude | Active commands/requirements agree; code-written and data-validated states are distinct |
 
 ---
 
@@ -181,3 +182,13 @@ Append to the task's Log cell, newest last, pipe-safe (use `<br>` for line break
 ```
 2026-09-18 agentX: claimed<br>2026-09-18 agentX: pytest 3 passed<br>2026-09-18 agentX: done, commit ab12cd3
 ```
+
+**2026-09-21 (claude), F-05/F-06/F-08/F-13/F-14 partial closure.** What is implemented and
+tested is listed in [HANDOFF §10](HANDOFF.md#10-plan-review-2026-09-20) under *Implementation
+status*. In short: forecast origin and horizons fixed and guarded by a test, training-target
+overlap removed, hand-off statistic reports NaN and a count instead of a silent 0.0, rows
+carry window/origin/TLE identity, figures carry seed and transfer mode, `summarize.py` no
+longer lets a rerun reweight a median, and the CLI examples match the code. Still open in
+each: paired cross-branch origins, the observed-state budget in the CSV, TLE age, GEO
+threshold justification, a run manifest, and dependency/checkpoint identity.
+

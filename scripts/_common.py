@@ -44,7 +44,12 @@ def load_window(norad, minutes, n_windows, index=0, period_sec=None):
         raise ValueError("period_sec missing from meta.json -- rebuild the dataset (P1-04)")
     return dict(seq=states[index], t_sec=np.asarray(t_sec, dtype=float),
                 handoff=extras["handoff_jump_km"][index], period_sec=float(period_sec),
-                meta=meta)
+                meta=meta, index=index)
+
+
+def provenance(w):
+    """Row fields that say which data a result came from (HANDOFF REV-09)."""
+    return dict(window=w["index"], tle_sha256=w["meta"].get("tle_sha256", "")[:12])
 
 
 def datasets_for(seq_dim, train_size, device):
@@ -67,6 +72,10 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
     train_in, train_out, test_in, test_out = create_datasets(seq_nd, 1, train_size, device)
     t_periods = t_sec / period_sec
     test_size = len(seq_nd) - train_size
+    # Forecast origin = the last observed state. With lookback 1 the training transitions
+    # end at x_{train_size-1} -> x_{train_size}, so state train_size is a training target
+    # and scoring starts at train_size + 1 (HANDOFF REV-02/REV-04).
+    origin = train_size
 
     tf_dim = predict_teacher_forced(model, t_periods, seq_nd.copy(), train_in, test_in,
                                     train_size, test_size,
@@ -95,11 +104,13 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
 
         mt.plot_rollout_error(ro_dim, seq_dim, t_sec, period_sec, handoff,
                               path=FIGDIR / f"{prefix}-{domain}Rollout-{model_name}.png",
-                              title=f"{prefix} {domain} closed-loop rollout", label=model_name)
+                              title=f"{prefix} {domain} closed-loop rollout",
+                              label=model_name, origin=origin)
 
-    test = slice(train_size, None)
+    test = slice(origin + 1, None)                  # strictly after the last observed state
     m = mape(seq_dim[test], tf_dim[test], axis=0)   # per-state MAPE, as in the ASC tables
-    ro_err = mt.position_error_at(ro_dim, seq_dim, t_sec, period_sec, periods=(1, 5))
+    ro_err = mt.position_error_at(ro_dim, seq_dim, t_sec, period_sec, periods=(1, 5),
+                                  origin=origin)
     med, p95 = mt.noise_floor(handoff)
     return dict(
         mape_x=m[0], mape_y=m[1], mape_z=m[2], mape_vx=m[3], mape_vy=m[4], mape_vz=m[5],
@@ -107,7 +118,8 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
             np.sum((tf_dim[test, :3] - seq_dim[test, :3]) ** 2, axis=1)))),
         rollout_pos_1T_km=ro_err[1], rollout_pos_5T_km=ro_err[5],
         energy_drift_pct=mt.energy_drift(tf_dim[test]),
-        noise_floor_med_km=med, noise_floor_p95_km=p95,
+        handoff_med_km=med, handoff_p95_km=p95, handoff_n=mt.handoff_count(handoff),
+        origin_sec=float(t_sec[origin]),
     )
 
 
@@ -122,5 +134,6 @@ def report(row, csv_path):
           f"tl={row['tl_mode']} seed={row['seed']}: "
           f"MAPE pos {np.mean([row['mape_x'], row['mape_y'], row['mape_z']]):.4g} % | "
           f"rollout 1T {row['rollout_pos_1T_km']:.3g} km | "
-          f"noise floor med {row['noise_floor_med_km']:.3g} / p95 {row['noise_floor_p95_km']:.3g} km")
+          f"hand-off med {row['handoff_med_km']:.3g} / p95 {row['handoff_p95_km']:.3g} km "
+          f"(n={row['handoff_n']})")
     return run_id

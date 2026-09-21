@@ -18,7 +18,7 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from _common import datasets_for, evaluate, load_window, report, set_seed
+from _common import datasets_for, evaluate, load_window, provenance, report, set_seed
 from branch_a_zero_shot import source_model_path, train_source
 from qutils.ml.utils import getDevice
 from tlv import datasets as ds
@@ -67,11 +67,13 @@ def main():
     train_s = fit(target, datasets, cfg["epochs_tgt"], lr=cfg["lr"])
 
     row = evaluate(target, seq_nd, w["seq"], w["t_sec"], w["period_sec"], train_size,
-                   w["handoff"], device, f"{a.norad}-c", a.model.capitalize(),
+                   w["handoff"], device, f"{a.norad}-c-{a.tl}-{a.model}-s{a.seed}",
+                   a.model.capitalize(),
                    domain="TargetDomain", plots=not a.no_plots)
     row.update(branch="c", style=a.style, object=a.norad, model=a.model, tl_mode=a.tl,
                train_periods=cfg["target"]["train_periods"], epochs_src=cfg["epochs_src"],
-               epochs_tgt=cfg["epochs_tgt"], train_s=train_s, seed=a.seed)
+               epochs_tgt=cfg["epochs_tgt"], train_s=train_s, seed=a.seed,
+               **provenance(w))
     report(row, a.csv)
 
 

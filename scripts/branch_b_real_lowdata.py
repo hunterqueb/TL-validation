@@ -14,7 +14,7 @@ import yaml
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 
-from _common import datasets_for, evaluate, load_window, report, set_seed
+from _common import datasets_for, evaluate, load_window, provenance, report, set_seed
 from qutils.ml.utils import getDevice
 from tlv import datasets as ds
 from tlv.models import return_model
@@ -49,13 +49,14 @@ def main():
     model = return_model(a.model, device, d_conv=style["d_conv"])
     train_s = fit(model, datasets, style["epochs"], lr=cfg["lr"])
 
-    prefix = f"{a.norad}-b{'' if a.style == 'asc' else '-' + a.style}"
+    prefix = f"{a.norad}-b-{a.style}-s{a.seed}"
     row = evaluate(model, seq_nd, w["seq"], w["t_sec"], w["period_sec"], train_size,
                    w["handoff"], device, prefix, a.model.capitalize(),
                    domain="TargetDomain", plots=not a.no_plots)
     row.update(branch="b", style=a.style, object=a.norad, model=a.model, tl_mode="none",
                train_periods=train_size * 60.0 / w["period_sec"], epochs_src=0,
-               epochs_tgt=style["epochs"], train_s=train_s, seed=a.seed)
+               epochs_tgt=style["epochs"], train_s=train_s, seed=a.seed,
+               **provenance(w))
     report(row, a.csv)
 
 
