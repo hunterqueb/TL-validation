@@ -8,6 +8,10 @@ Agents edit this file. Rules are in `PLAN.md` §4. Specs are in `HANDOFF.md` (se
 
 Last updated: 2026-09-17 (claude: P0, R1, P1 code, P2-01..03, P5-01, R2-03; target changed to Yamal 202)
 
+Review annotations added: 2026-09-20 (codex). Existing completion logs are historical;
+they do not establish resolution of [HANDOFF §10](HANDOFF.md#10-plan-review-2026-09-20).
+F-05–F-14 below are open review follow-ups, not approved implementation changes.
+
 ---
 
 ## Milestone board
@@ -21,6 +25,14 @@ Last updated: 2026-09-17 (claude: P0, R1, P1 code, P2-01..03, P5-01, R2-03; targ
 | M3 branch (c) transfer | full+feature, Mamba+LSTM, 3 seeds; F1 unit test passes | todo | |
 | M4 long-term + summary | summary table + figures | todo | |
 | M5 corrected CR3BP tables | pairs 1–3 re-run | todo | |
+
+> **Review impact:** M0 needs reference-quality/coverage reconciliation (REV-01/REV-10);
+> M1/M1b need split, baseline, and window validation (REV-02/REV-04–REV-06); M2 needs a
+> matched source and outcome-independent gates (REV-03/REV-07); M3 needs all of those plus
+> verifiable paired budgets; M4 needs reliable artifact identity and aggregation (REV-09).
+> The historical "all code ready" wording in M0 is not supported by this review. No milestone
+> is marked complete by adding these annotations. M5's dependency on the GEO report is a
+> proposed scheduling change (REV-10).
 
 ---
 
@@ -139,6 +151,26 @@ Last updated: 2026-09-17 (claude: P0, R1, P1 code, P2-01..03, P5-01, R2-03; targ
 | F-01 | *(H-3)* ISS 25544 contamination case: run branches a/b/c on a window containing a known reboost; expected: all three fail at the burn; one figure | blocked | | H-3, P5-03 | | |
 | F-02 | *(H-1)* Secondary lower-LEO passive object: satcat query `OBJECT_TYPE=ROCKET BODY, DECAY=null, PERIGEE 450--550`; propose 3 candidates with TLE count over the window; Hunter picks | blocked | | H-1, P1-01 | candidates logged here | |
 | F-03 | After M3 green: move `teme_to_j2000`, `segment_ephemeris` into `qutils/orbital.py` (HANDOFF §8.2 item 3) | todo | | P5-05 | qutils commit; `tlv/tle_ephem.py` imports from qutils; tests still green | |
+| F-04 | Annotate the docs with the 2026-09-20 plan review; distinguish findings and recommendations from approved design changes | done | codex | — | All review findings have stable IDs, evidence, and links from affected sections; follow-ups remain open | 2026-09-20 codex: claimed; documentation only<br>2026-09-20 codex: added REV-01–REV-10 and F-05–F-14; git diff --check passed; review IDs, follow-up rows, code fences, and local file links validated |
+
+## Review follow-ups (2026-09-20)
+
+These entries record recommendations from [HANDOFF §10](HANDOFF.md#10-plan-review-2026-09-20).
+`todo` means unresolved review work, not authorization to adopt every proposed design change.
+Reconcile the protocol in HANDOFF before implementing a changed experimental condition.
+
+| ID | Review / affected tasks | Proposed work | Status | Owner | Closure evidence |
+|---|---|---|---|---|---|
+| F-05 | REV-01; P1-07, P2-03, M0 | Correct reference-data and uncertainty claims; track hand-off count/TLE age; distinguish absent from zero-valued hand-offs | todo | | Consistent terminology, justified quality criteria, and validated missing-evidence handling |
+| F-06 | REV-02; P2-02/P2-03, P5-05, P6 | Define common forecast origin and elapsed horizons; fix coverage and endpoint handling | todo | | Timestamp tests show 1T is a full period after the final observation, with all requested endpoints present |
+| F-07 | REV-03; R2-01–R2-03, P3-01 | Produce exact initial state/shared epoch and correct anomaly/force metadata before accepting matched GMAT data | todo | | Run-zero state/time alignment verified and discrepancy components documented |
+| F-08 | REV-04; P2-06/P2-07, P5 | Specify observed states versus transitions, remove training-target overlap, and declare target information used for source construction | todo | | Auditable sample budget and tests that scoring starts strictly after the final observed state |
+| F-09 | REV-05; P2-05, P4-02, P5-03, P7 | Preselect development/held-out windows and paired seed/window comparisons | todo | | Frozen window protocol and separate reporting of seed/window variability and overlap |
+| F-10 | REV-06; P2-03, P7 | Add physical/simple baselines and prioritize position/velocity errors over MAPE and energy diagnostics | todo | | Baselines share forecast origins and available information; primary metrics are specified before the matrix |
+| F-11 | REV-07; M2/M3, PLAN §1–§2 | Replace success-conditioned gates with validity gates and a neutral research question | todo | | Protocol permits complete reporting of poor fits and negative transfer |
+| F-12 | REV-08; P2-01, HANDOFF §4 | Clarify length-one state-map interpretation and evaluate a feed-forward comparator | todo | | Architecture claims match the actual context/state policy; comparator budget documented |
+| F-13 | REV-09; P4-03, P7-01/P7-02 | Add run provenance, unique artifacts, compatible grouping, and a deterministic rerun policy | todo | | Object/window/config identities survive to summary; duplicate runs cannot silently reweight results |
+| F-14 | REV-10; P0, P1-02/P1-08, P2-07, P6, HANDOFF §9.6 | Reconcile GEO instructions, actual coverage, CLI examples, task status/table formatting, and proposed dependency changes | todo | | Active commands/requirements agree; code-written and data-validated states are distinct |
 
 ---
 

@@ -11,6 +11,12 @@ against those sources. Anything not checked is marked **VERIFY**.
 Design rules for this repo (from the project instructions): simple beats complex; surgical
 changes only. Reuse `qutils` functions. Do not fork them into this repo unless a bug blocks you.
 
+> **Review annotation — 2026-09-20:** The three-branch design is useful, but the current
+> protocol does not yet support its headline claims. Read [§10](#10-plan-review-2026-09-20)
+> before interpreting results or expanding the run matrix. REV-01–REV-10 distinguish observed
+> problems from proposed remedies. These annotations do not approve a new protocol or mark
+> implementation fixes complete; the original specification is retained for traceability.
+
 ---
 
 ## 0. Decisions already made
@@ -124,6 +130,11 @@ data/real/<norad>/<T>min-<N>/statesArrayReal.npz
 ```
 
 `handoff_jump_km` is the noise floor of the "truth". It is reported next to every error metric.
+
+> **Review — REV-01:** This wording overstates what is measured. Successive-TLE differences
+> measure consistency, not a calibrated accuracy floor. Proposed terminology: "TLE hand-off
+> consistency statistic" and "TLE-derived reference ephemeris." No observed hand-offs means
+> unavailable evidence, not zero uncertainty. See §10 before using this quantity as a bound.
 
 ---
 
@@ -286,6 +297,11 @@ def nearest_synthetic(oe_target, oe_bank, k=1):
 
 `create_datasets` comes from `qutils.ml.regression` unchanged (`seq_length = 1`).
 
+> **Review — REV-04, REV-08:** This function counts supervised transitions, not unique observed
+> states: `train_size=2` exposes three states. Specify the final observed state and first scored
+> target explicitly. With length-one inputs and no carried recurrent state, the experiment
+> tests one-step state maps; it does not establish an advantage from long temporal memory.
+
 ### 3.4 `tlv/models.py`
 
 ```python
@@ -325,6 +341,11 @@ def rollout(model, seq, train_size, device):
 
 ### 3.6 `tlv/metrics.py`
 
+> **Review — REV-02, REV-06:** Define forecast horizons relative to the last observed state,
+> not the window start. The current evaluator's "1T" value is only 120 seconds after rollout
+> initialization for the configured Yamal period. Prefer position/velocity errors as primary
+> metrics; retain component MAPE and J2 energy as comparison diagnostics. See §10 for details.
+
 `mape`, `rmse` → import from `qutils.ml.utils`. Add:
 
 - `energy_drift(seq_dim, mu, Re)` using `qutils.orbital.orbitalEnergyJ2` (two-body energy
@@ -351,6 +372,11 @@ All three branches share one target object and one target window so the numbers 
 
 Model matrix per branch: `{Mamba, LSTM} × {seed 0, 1, 2}`. Three seeds is the minimum to
 report a spread; single-seed numbers from the papers cannot be compared to anything.
+
+> **Review — REV-05:** Seeds describe training variability on a fixed window. They do not
+> replace held-out time windows or independent reference observations. Preselect development
+> and evaluation windows and compare branches on the same window/seed pairs. The five-day and
+> seven-day windows overlap and must not be counted as independent replications.
 
 Target objects (`configs/targets.yaml`):
 
@@ -406,6 +432,13 @@ Order is strict. Each step ends with a runnable command and an artifact.
 3. Both write the standard plot set (section 6.1) and a results row.
 
 **Step 3 — matched synthetic source**
+
+> **Review — REV-03:** The committed GMAT examples are not yet a matched scientific source.
+> Their September elements, hardcoded July 2020 propagation epoch, randomized run zero, and
+> mean-anomaly-as-true-anomaly input confound the source/target comparison. The proposed entry
+> gate is exact initial state, shared epoch/frame, explicit force settings, and saved metadata.
+> A large gap cannot yet be attributed to drag, SRP, or any single physical mechanism.
+
 1. Take the first real state of the target window, `ECI2OE` it, write a GMAT config
    (`scripts/make_gmat_config.py`, or use the committed `configs/gmat/gmat_28089_asc.yaml`).
    **Corrected 2026-09-17:** the config uses the schema the generator reads *today* —
@@ -466,6 +499,11 @@ File names: `figures/<object>-<branch>-<Domain><Plot>-<model>.pdf`, e.g.
 Gates are pass/fail. Targets are what a good result looks like; missing a target is a finding,
 not a failure.
 
+> **Review — REV-07:** M2 contradicts this distinction by making MAPE ≤ 0.1% a gate that
+> blocks M3. Proposed gates establish valid execution and comparisons, regardless of whether
+> transfer wins. M0's hand-off thresholds also need object-specific justification (REV-01).
+> The existing table records the original protocol, not resolution of these review findings.
+
 | # | Milestone | Gate | Target |
 |---|---|---|---|
 | M0 | Real dataset built and validated | `pytest tests/` green; hand-off median < 2 km, p95 < 10 km; `meta.json` has TLE sha256 | 45-day span, Ap < 30 |
@@ -479,6 +517,11 @@ not a failure.
 Equal-budget rule for M3: branch (b)-2-epoch and branch (c) must see the same real samples, the
 same number of target epochs, the same seed and the same batch size. Only the initial weights
 differ. Anything else is not a transfer-learning comparison.
+
+> **Review — REV-04, REV-09:** Include observed states used to construct the synthetic initial
+> condition in the information budget. Record exact splits, forecast origins, configuration
+> and dataset identities, and source checkpoint identity so the equality can be checked.
+> Equal target-adaptation budget does not imply equal total compute; report pretraining cost.
 
 ---
 
@@ -641,3 +684,145 @@ python scripts/branch_c_transfer.py  --norad 28089 --minutes 7181 --model mamba 
 # Step 7
 python scripts/summarize.py
 ```
+
+## 10. Plan review (2026-09-20)
+
+**Scope:** Documentation and implementation inspection; no new training runs. The branch
+comparison, transfer-update regression test, and separate teacher-forced/rollout reporting
+are strengths worth retaining. The findings below remain open. Proposed changes require
+protocol reconciliation and, where applicable, implementation and validation before closure.
+Follow-up IDs are tracked in [TASKS.md](TASKS.md#review-follow-ups-2026-09-20).
+
+### REV-01 Reference data and uncertainty
+
+**Finding (critical):** SGP4-densified TLE states are model-derived reference values, not
+independent position measurements. `handoff_jump_km` measures disagreement between successive
+orbit products. Shared errors can remain invisible, so it is not a demonstrated lower bound
+on physical position error. [CelesTrak's accuracy discussion](https://celestrak.org/columns/v04n05/)
+explicitly distinguishes consistency from accuracy. Also, `tlv/metrics.py::noise_floor` and
+`tlv/tle_ephem.py::write_real_npz` currently return zero when no positive jumps are present.
+
+**Recommendation:** Describe the initial study as transfer to TLE-derived ephemerides. Rename
+the statistic, record hand-off counts and TLE ages, distinguish no hand-offs from genuine
+zero-valued hand-offs, and justify any acceptance thresholds for this object. Independent
+reference data is needed for stronger physical-accuracy claims. Links: §2, §3.2, M0; F-05.
+
+### REV-02 Forecast origin and horizon coverage
+
+**Finding (critical):** `scripts/_common.py::evaluate` passes window-relative time to
+`position_error_at`, while `tlv/train.py::rollout` starts at `train_size`. With period
+86166 s and dt 60 s, `train_size=1436`; initialization uses the state at 86100 s, and
+the reported 1T sample is at 86220 s. That is a 120-second rollout. The final sample of a
+7181-sample real window is at 430800 s, before 5T = 430830 s; that metric is unavailable even
+under the current window-relative definition.
+
+**Recommendation:** Establish one forecast origin at the last observed state, shared by the
+compared branches. Score at elapsed horizons from that origin and define interpolation or
+sample-rounding rules. Allocate the training prefix plus the complete forecast horizon and
+endpoint. Test timestamp alignment, origin equality, and endpoint coverage before M3. Links:
+§3.5–§3.6, P2-02/P2-03, M3/M4; F-06.
+
+### REV-03 Matched synthetic source
+
+**Finding (critical):** `configs/gmat/gmat_28089_asc.yaml` uses September elements while the
+configured reference span is June–July. The unpatched generator retains its July 2020 epoch,
+samples eccentricity and angles for every run, and does not make run zero exact. The config
+also supplies mean anomaly in a true-anomaly field. A phase error of about 0.05 degrees at
+42166 km corresponds to roughly 37 km, already exceeding the 20 km sanity threshold.
+
+**Recommendation:** Finish fixed-state/epoch support and metadata before accepting a source
+dataset as matched. Prefer a Cartesian initial state, or perform the correct anomaly
+conversion; verify time-grid alignment. Record force-model assumptions and uncertain physical
+parameters explicitly. Diagnose initial-state, timing, and model discrepancies separately
+before attributing the residual to a perturbation. Links: §5 step 3, R2/P3, H-7; F-07.
+
+### REV-04 Observation budget and split boundaries
+
+**Finding (high):** `qutils.ml.regression.create_datasets(..., train_size=2)` trains on
+`x0 -> x1` and `x1 -> x2`: three observed states. For a general training size n, the final
+training label is state n, but `evaluate` starts scoring at n and rollout initializes from
+n-1. The first scored teacher-forced prediction is therefore a training prediction.
+Using a target state to construct a synthetic source also consumes target information.
+
+**Recommendation:** Specify unique observed states, training transitions, last observation,
+and first evaluation target separately. Either use one transition for a literal two-state
+experiment or label the paper-reproduction setup accurately. Declare target information used
+outside gradient updates, and distinguish target adaptation cost from total training cost.
+Links: §3.3, §4, §6.2, P2-06/P2-07; F-08.
+
+### REV-05 Temporal generalization
+
+**Finding (high):** The run matrices vary seeds and models, while runners default to window
+zero. Three seeds measure optimizer/initialization variability on that window. Many 60-second
+samples from one TLE do not constitute independent observations. ASC and long windows share
+their initial epoch and overlap.
+
+**Recommendation:** Preselect development and held-out time windows, document screening
+criteria before viewing model errors, and evaluate paired branch differences across windows
+and seeds. Report counts at both levels and acknowledge overlapping or shared-TLE support.
+Do not generalize a single-object case study to other satellites without testing them.
+Links: §4, P2-05/P4-02/P5-03, M4; F-09.
+
+### REV-06 Baselines and primary metrics
+
+**Finding (high):** Mamba/LSTM comparisons alone cannot establish useful orbit prediction.
+Component-wise MAPE is sensitive to coordinate zero crossings. The proposed J2 energy
+diagnostic is not a conserved-energy guarantee for a trajectory with additional forces and
+TLE hand-offs; teacher-forced energy drift is especially weak evidence of rollout quality.
+
+**Recommendation:** Add persistence, constant-velocity or two-body propagation, and propagation
+of the TLE available at the forecast origin, with no future TLE updates supplied to that
+baseline. Use position error in km and velocity error at shared elapsed horizons as primary
+metrics. Retain component MAPE for paper comparison and energy as a diagnostic, including the
+reference trajectory's variation. Links: §3.6, §6.1–§6.2, P2/P7; F-10.
+
+### REV-07 Neutral hypothesis and validity gates
+
+**Finding (high):** PLAN §1 defines the headline as transfer beating both baselines. M2 gates
+the transfer experiment on source MAPE ≤ 0.1%, despite §6.2 saying missed targets are findings.
+This can prevent reporting a scientifically valid negative outcome.
+
+**Recommendation:** Ask whether synthetic pretraining improves held-out performance at fixed
+target-data and adaptation budgets. Gate on valid datasets, working code, aligned evaluation,
+and complete comparisons. Report poor source fits and negative transfer; keep performance
+targets separate from completion criteria. Links: PLAN §1–§2, M2/M3; F-11.
+
+### REV-08 Architecture interpretation
+
+**Finding (medium):** Length-one inputs and repeated forward calls without carried recurrent
+state evaluate one-step state maps. They do not test long-history modeling, even though the
+architectures are recurrent/state-space models. The LSTM wrapper initializes its recurrent
+state on each forward call.
+
+**Recommendation:** Preserve this setup as the explicit paper-reproduction condition, add a
+simple feed-forward comparator, and avoid attributing results to temporal memory. If a
+history-aware experiment is desired, define it separately with an explicit context/state
+policy and comparable budgets. Links: §3.3–§3.5, §4, P2-01; F-12.
+
+### REV-09 Reproducibility and aggregation
+
+**Finding (high):** CSV rows lack window identity, dataset hash, forecast origin, and config
+and checkpoint identities. `scripts/summarize.py` groups without object identity and weights
+every appended rerun in its median, despite describing a median over seeds. Figure names
+overwrite seeds and transfer modes; checkpoint names omit source dataset/config identity.
+
+**Recommendation:** Add a run manifest and unique artifact directory with exact data, split,
+model/config, dependency revision, and checkpoint identities. Define a deterministic rerun
+selection policy, validate comparison compatibility, and aggregate paired results by window
+and seed. Test that changing objects or appending a duplicate run cannot silently change an
+unrelated comparison. Links: §3.6/§6.1, PLAN rule 10, P4-03/P7-01; F-13.
+
+### REV-10 Execution and documentation reconciliation
+
+**Finding (medium):** The active goal/risk register and P1-02 still use LEO/Ap assumptions.
+P2-07 names `--epochs 2`, but the implemented option is `--style asc2`. The quick-reference
+commands omit required `--windows` arguments and retain an old GMAT config path. Nine
+7181-minute windows need 44.88125 days; June 1 to July 15 is 44 elapsed days, and actual TLE
+epoch coverage can be shorter than the requested date range. The P1-08 Markdown row is
+malformed. M0's "all code ready" wording overstates the validation performed.
+
+**Recommendation:** Reconcile active instructions, derive window counts from actual coverage,
+separate code-written from data-validated status, and repair task-table/CLI discrepancies.
+Consider running corrected CR3BP reproduction in parallel without making it a prerequisite
+for reporting the GEO study. Do not enforce an arbitrary six-module limit if it merely moves
+shared library responsibilities into scripts. Links: PLAN §2–§6, §9.6, TASKS; F-14.

@@ -7,6 +7,10 @@ Read order for any agent: `HANDOFF.md` §0–§1 → this file → `TASKS.md`.
 - `PLAN.md` says *in what order*, *what can run in parallel*, and *how agents behave*.
 - `TASKS.md` says *what is done, in progress, blocked*. Agents update it; humans read it.
 
+> **Review annotation — 2026-09-20:** Read [HANDOFF §10](HANDOFF.md#10-plan-review-2026-09-20)
+> alongside this plan. REV-01–REV-10 are open findings; the ordering below is the original
+> plan, not an endorsement that the current protocol is ready for the full experiment.
+
 ---
 
 ## 1. Goal, in one paragraph
@@ -17,6 +21,11 @@ target object and window: (a) zero-shot synthetic→real, (b) train-from-scratch
 low data, (c) synthetic pretrain + 2-epoch real fine-tune. The headline result is (c) beating
 both (a) and (b) at equal target budget, for Mamba, median over 3 seeds, with the SGP4
 hand-off noise floor printed next to every number.
+
+> **Review — REV-01, REV-07, REV-10:** The active target is Yamal/GEO, and hand-off
+> disagreement is not a demonstrated accuracy floor. Proposed question: "Does synthetic
+> pretraining improve held-out performance at a fixed target-data and adaptation budget?"
+> Winning is an experimental outcome, not a completion requirement.
 
 ---
 
@@ -47,6 +56,18 @@ P0 env ──┬── P1 real data ──── P2 branch (b) ──┐
 
 Hard rule: P5 does not start until M1 and M2 are green. M3's comparison is meaningless
 without the (a) and (b) rows it is compared against.
+
+> **Review — REV-02–REV-07, REV-09:** Retain the requirement for comparison rows, but
+> separate execution validity from M2's performance threshold. Proposed revised sequence,
+> pending protocol reconciliation:
+>
+> 1. Settle the GEO claim, observation budget, primary metrics, and held-out windows.
+> 2. Correct and test forecast origins, split boundaries, and horizon coverage.
+> 3. Validate one reference window and establish physical baselines.
+> 4. Produce one genuinely matched GMAT trajectory with complete metadata.
+> 5. Run one paired a/b/c pilot with reproducible artifacts; then expand across windows/seeds.
+> 6. Summarize the outcomes, including negative results. Keep corrected CR3BP reproduction
+>    as a parallel deliverable; reconsider making it block the GEO report (REV-10).
 
 ---
 
@@ -96,6 +117,10 @@ agents *after* a single seed-0 run has produced a correct plot set.
 
 ## 5. Cadence
 
+> **Review — REV-09, REV-10:** A green smoke test is not a scientific milestone. Record
+> code completion and dataset/experiment validation separately. Review findings are tracked
+> in TASKS F-05–F-14; annotating them does not close them or authorize unrelated code changes.
+
 - After each task: update `TASKS.md`, commit.
 - After each phase: append a 3–6 line phase note to §7 of this file (what was produced, what
   surprised you, what the next agent must know). Commit.
@@ -105,6 +130,12 @@ agents *after* a single seed-0 run has produced a correct plot set.
 ---
 
 ## 6. Risk register (short)
+
+> **Review — REV-01, REV-03, REV-10:** The first two risk responses retain LEO assumptions.
+> For GEO, screen and document maneuvers, TLE age/cadence, coverage, initial-state alignment,
+> and force-model assumptions. Do not attribute a source/reference discrepancy to drag or
+> SRP before timing and initialization errors are excluded. No hand-offs is not proof of
+> zero uncertainty. The original thresholds below need justification for this target.
 
 | Risk | Signal | Response |
 |---|---|---|
@@ -163,6 +194,13 @@ of them fixable by an id change — they are open items H-5 … H-7 in HANDOFF �
 
 Also: 1 period is now 1436 samples rather than 101, so ASC-style "train on one period" is 14×
 more training data than the LEO plan assumed. The DDDAS 2-point style is unaffected.
+
+**Documentation review (2026-09-20, codex).** Added HANDOFF §10 and inline annotations for
+reference-data claims, forecast origins, matched GMAT inputs, observation budgets, temporal
+generalization, baselines/metrics, neutral gates, architecture interpretation, reproducibility,
+and execution drift. F-05–F-14 track the open remedies. In particular, the current Yamal "1T"
+metric is a 120-second rollout and `train_size=2` exposes three states. This is a documentation
+review only; no code fixes, new training results, or protocol approvals are implied.
 
 ---
 
