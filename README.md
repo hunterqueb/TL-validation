@@ -33,7 +33,7 @@ pip install -e ../qutils          # skbuild: if the editable install fails, `pip
 pip install -r requirements.txt
 $EDITOR data.yaml                 # point `gmat` at your GMAT-Thrust-Data/data folder
 cp .env.example .env              # then fill in your space-track credentials
-pytest tests/                     # 13 pass, hand-off gate skips until a dataset exists
+pytest tests/                     # 20 pass (the hand-off gate needs a built dataset)
 ```
 
 `qutils` is installed as a copy, not in editable mode: **re-run `pip install ../qutils`
@@ -41,45 +41,94 @@ after any qutils edit**, or the fix will not be picked up.
 
 ## Run
 
+Every branch has a run script that executes its whole matrix and writes the standard plot
+set (HANDOFF §6.1) for each run. Figure names carry style, model and seed, so nothing
+overwrites anything. Run them from the repo root.
+
+### 1. Real data (once)
+
 ```bash
-# real data
 python scripts/screen_window.py --norad 28089 --start 2026-01-01 --stop 2026-09-21
 python scripts/fetch_tles.py --norad 28089 --start 2026-02-18 --stop 2026-04-08
 python scripts/build_real_dataset.py --norad 28089 --minutes 8620  --windows 8
 python scripts/build_real_dataset.py --norad 28089 --minutes 10080 --windows 4
+pytest tests/
+```
 
-# whole-branch matrices (standard plot set written for every run)
-./scripts/run_branch_b.sh                 # M1 + M1b: 3 styles x 2 models x 3 seeds
-./scripts/run_branch_a.sh                 # M2       (needs the GMAT source domain)
-./scripts/run_branch_c.sh                 # M3       (run a and b first)
-# narrow with args or the environment: ./scripts/run_branch_b.sh asc
-#                                      SEEDS=0 MODELS=mamba ./scripts/run_branch_b.sh dddas
+`screen_window.py` ranks candidate spans by TLE coverage, largest TLE gap and |d(sma)| step
+before any model is run; the chosen window and its criteria are recorded in
+`configs/targets.yaml`.
 
-# branch (b): from scratch on real data
-python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 8620 --windows 8 \
-    --style asc --model mamba --seed 0
-python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 10080 --windows 4 \
-    --style dddas --model mamba --seed 0
-python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 8620 --windows 8 \
-    --style asc2 --model mamba --seed 0     # equal-budget row for the M3 comparison
+### 2. Matched synthetic source (GMAT, run on Hunter's machine)
 
-# matched synthetic source (GMAT runs on Hunter's machine)
-# configs/gmat/ already holds both runs; regenerate from a real window with
-#   python scripts/make_gmat_config.py --norad 28089 --minutes 8620 --windows 8
+Branches (a) and (c) need it; branch (b) does not.
+
+```bash
 cp configs/gmat/gmat_28089_asc.yaml ~/git/GMAT-Thrust-Data/config.yaml
 ( cd ~/git/GMAT-Thrust-Data && ./generateGMATNoThrustDataset.sh )   # -> regression/geo/8620min-10
 cp configs/gmat/gmat_28089_long.yaml ~/git/GMAT-Thrust-Data/config.yaml
 ( cd ~/git/GMAT-Thrust-Data && ./generateGMATNoThrustDataset.sh )   # -> regression/geo/10080min-3
-
-# branches (a) and (c)
-python scripts/branch_a_zero_shot.py --norad 28089 --minutes 8620 --windows 8 --model mamba --seed 0
-python scripts/branch_c_transfer.py  --norad 28089 --minutes 8620 --windows 8 --model mamba --tl full --seed 0
-
-python scripts/summarize.py
 ```
 
-Branch (a) saves its source weights to `results/models/`; branch (c) loads them, so the two
-branches share one source model. Run (a) first.
+### 3. Branch matrices
+
+```bash
+./scripts/run_branch_b.sh      # M1 + M1b: {asc, asc2, dddas} x {mamba, lstm} x 3 seeds = 18 runs
+./scripts/run_branch_a.sh      # M2:       {mamba, lstm} x 3 seeds = 6 runs
+./scripts/run_branch_c.sh      # M3:       {full, feature} x {mamba, lstm} x 3 seeds = 12 runs
+python scripts/summarize.py    # results/branch_*.csv -> results/summary.md
+```
+
+| script | styles / modes | needs |
+|---|---|---|
+| [run_branch_b.sh](scripts/run_branch_b.sh) | `asc` (5 epochs), `asc2` (2 epochs, the equal-budget row for M3), `dddas` (2 points, 50 epochs, 7-day window) | the real dataset |
+| [run_branch_a.sh](scripts/run_branch_a.sh) | `asc`, `long` | the real dataset **and** the GMAT source |
+| [run_branch_c.sh](scripts/run_branch_c.sh) | `full`, `feature` × `asc`, `long` | both, **and** branch (a) run first |
+
+**Order matters.** Branch (a) saves its source weights to `results/models/`; branch (c)
+loads them, so the two share one source model. Run (a) before (c) or the comparison is not
+a transfer-learning comparison — (c) warns per-cell when those weights are missing. PLAN's
+hard rule is that (c) does not start until M1 and M2 are green.
+
+Narrow a re-run with arguments or the environment — settings live in
+[scripts/_common.sh](scripts/_common.sh) and are all overridable:
+
+```bash
+./scripts/run_branch_b.sh asc asc2               # only these styles
+./scripts/run_branch_c.sh full                   # only this transfer mode
+./scripts/run_branch_a.sh long                   # the 7-day window instead
+SEEDS=0 MODELS=mamba ./scripts/run_branch_b.sh dddas
+WINDOW=3 ./scripts/run_branch_b.sh asc           # a different window of the set
+SUMMARIZE=0 ./scripts/run_branch_b.sh            # skip the summary at the end
+```
+
+| variable | default | |
+|---|---|---|
+| `NORAD` | `28089` | target object |
+| `ASC_MIN` / `ASC_WIN` | `8620` / `8` | ASC-style window: 6 periods, 8 of them |
+| `LONG_MIN` / `LONG_WIN` | `10080` / `4` | 7-day window |
+| `WINDOW` | `0` | which window of the set to use |
+| `SEEDS` | `0 1 2` | three is the floor for any headline number |
+| `MODELS` | `mamba lstm` | |
+| `SUMMARIZE` | `1` | run `summarize.py` at the end |
+
+Each script checks its inputs first and stops with the command that produces a missing one.
+A run that fails does not abort the matrix: it is counted, listed at the end, and the script
+exits 1.
+
+### 4. A single run
+
+```bash
+python scripts/branch_b_real_lowdata.py --norad 28089 --minutes 8620 --windows 8 \
+    --style asc --model mamba --seed 0
+python scripts/branch_a_zero_shot.py --norad 28089 --minutes 8620 --windows 8 \
+    --model mamba --seed 0
+python scripts/branch_c_transfer.py  --norad 28089 --minutes 8620 --windows 8 \
+    --model mamba --tl full --seed 0
+```
+
+`--windows` is required: together with `--minutes` it selects the dataset directory.
+Add `--no-plots` to skip the plot set.
 
 ## Configs
 
@@ -103,7 +152,8 @@ regenerates them from a real window and emits the same schema.
 ## Layout
 
 `tlv/` is six modules and stays six (PLAN.md rule 9): `spacetrack`, `tle_ephem`, `datasets`,
-`models`, `train`, `metrics`. Shared script plumbing lives in `scripts/_common.py`.
+`models`, `train`, `metrics`. Shared plumbing lives in `scripts/_common.py` (window
+loading, the plot set, result rows) and `scripts/_common.sh` (run-matrix settings).
 Results are append-only CSV rows in `results/`; figures are regenerated, never hand-edited.
 
 GMAT data stays where it is: [data.yaml](data.yaml) holds one absolute path (`gmat`) to the

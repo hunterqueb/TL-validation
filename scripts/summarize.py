@@ -11,8 +11,11 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 MAPE = ["mape_x", "mape_y", "mape_z", "mape_vx", "mape_vy", "mape_vz"]
 EXTRA = ["rollout_pos_1T_km", "rollout_pos_5T_km", "rmse_pos_km", "energy_drift_pct"]
-KEYS = ["object", "branch", "style", "model", "tl_mode"]
-RUN = KEYS + ["window", "seed"]    # one result per configuration, not per rerun
+# `window` is a grouping key, not just a dedupe key: rows from different time windows must
+# not silently land in one median (HANDOFF REV-05/REV-09 -- comparisons are paired by
+# window and seed). Seeds vary within a row; windows get their own row.
+KEYS = ["object", "branch", "style", "model", "tl_mode", "window"]
+RUN = KEYS + ["seed"]              # one result per configuration, not per rerun
 
 
 def main():
@@ -39,7 +42,7 @@ def main():
     lines = ["# Summary", "",
              "Truth = SGP4 from space-track TLEs. Every number is the median over seeds; "
              "+- is the inter-quartile range. Rows with fewer than 3 seeds are flagged (!).",
-             "", "| object | branch | style | model | tl | seeds | " +
+             "", "| object | branch | style | model | tl | window | seeds | " +
              " | ".join(MAPE) + " | rollout 1T (km) | rollout 5T (km) | energy drift (%) |",
              "|" + "---|" * (len(KEYS) + 1 + len(MAPE) + 3)]
     for key in med.index:
