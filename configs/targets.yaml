@@ -23,7 +23,7 @@ targets:
       start: "2026-02-18"
       stop: "2026-04-08"
       max_ap: null
-      confirmed: false           # agent-proposed (PLAN 4.6); Hunter confirms
+      confirmed: true            # Hunter confirmed 2026-09-21 (H-2 closed)
   secondary: null                # H-1: was "rocket body, perigee 450-550 km" -- re-scope if
                                  # the primary is now GEO (H-5)
   contaminated:                  # H-3: only to show a maneuver breaks all three branches

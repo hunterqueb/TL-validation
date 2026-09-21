@@ -228,6 +228,26 @@ median 0.63 km / p95 2.13 km over 131 hand-offs (8620 min × 8) and 0.66 / 1.94 
 - astropy still cannot reach the IERS server here and falls back to bundled polar motion
   (arcsec-level, irrelevant against km-level SGP4 truth). It prints a warning on every run.
 
+**P2 branch (b) on real data (2026-09-21, claude).** M1 and M1b are done: 18 runs, no
+failures, `{mamba, lstm} × {asc, asc2, dddas} × {0,1,2}` on window 0. Mamba meets the M1
+target (median teacher-forced position MAPE 0.321 %, ≤ 1 %) and its median MAPE is below
+LSTM's on all six states in all three styles. What the next agent must know:
+
+- **Nothing propagates.** Median rollout position error at a true 1T horizon is 3.7e4 km
+  (Mamba, ASC-style) against a 4.2e4 km orbit radius and 0.53 km hand-off consistency. The
+  teacher-forced MAPE and the rollout number describe different universes, which is why
+  guardrail 9.3.3 exists. Any claim made from the MAPE column alone is not a propagation claim.
+- **The LSTM rollouts collapse.** Its 1T and 5T errors are equal to four figures (4.50e4 vs
+  4.50e4), so the closed loop settles on a fixed point instead of diverging. Mamba's grow
+  (3.7e4 -> 6.6e5). Different failure modes, same uselessness.
+- **M1b's energy target is missed and that is the result.** Mamba's teacher-forced J2 energy
+  drift over 7 days is 16.4 % median, not < 1 %. Per §6.2 a missed target is a finding.
+- **Seed spread is large.** Mamba ASC-style rollout at 1T is 6.2e3 / 7.3e4 / 3.7e4 km across
+  seeds 0/1/2 — an order of magnitude. Three seeds is the floor, not a comfortable margin,
+  and a single-seed comparison between branches would be noise.
+- The equal-budget row branch (c) must beat is `style=asc2`, Mamba: 0.465 % MAPE, 4.96e4 km
+  at 1T, window 0, seeds 0/1/2. Branch (c) must use the same window and seeds.
+
 ---
 
 ## 8. Decision log (append-only)
