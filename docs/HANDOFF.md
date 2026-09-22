@@ -510,8 +510,15 @@ Reproduce the ASC 2025 figure kinds with the same qutils calls so figures are di
 | Conserved quantity | `plotEnergy(..., orbitalEnergyJ2, xLabel='Number of Periods (T)')` | ASC Figs. 8, 9 (`...-ConservedQuantity.pdf`) |
 | **New:** rollout position error vs periods, with the hand-off noise floor as a shaded band | matplotlib in `tlv/metrics.py` | none — this is the honest addition |
 
-File names: `figures/<object>-<branch>-<Domain><Plot>-<model>.pdf`, e.g.
-`28089-c-TargetDomainConservedQuantity-Mamba.pdf`.
+File names: `figures/<object>-<branch>-<style>-s<seed>-<Domain><Plot>-<model>.pdf`, e.g.
+`28089-c-full-mamba-s0-TargetDomainConservedQuantity-Mamba.pdf`. Style, seed and transfer
+mode are in the name so a run matrix does not overwrite itself (REV-09).
+
+`<Domain>` is `SourceDomain` / `TargetDomain` only where a source and a target actually
+exist, which means branches (a) and (c). **Branch (b) trains from scratch on real data with
+no transfer step, so its fragment is `Real`** and its figure titles say neither "source" nor
+"target domain" — there is no domain transfer to name. Every figure title carries the object
+(`Yamal 202 (NORAD 28089)`), what the figure shows, and the run's budget/seed/window.
 
 ### 6.2 Milestones
 

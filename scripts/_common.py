@@ -4,6 +4,7 @@ Lives in scripts/ rather than tlv/ so tlv stays at six modules (PLAN.md rule 9).
 """
 import pathlib
 import sys
+import warnings
 
 import matplotlib
 matplotlib.use("Agg")
@@ -29,6 +30,18 @@ TRUTH_NOTE = "truth = SGP4 from space-track TLEs"
 
 def load_targets(path="configs/targets.yaml"):
     return yaml.safe_load(open(path))
+
+
+def object_label(norad, path="configs/targets.yaml"):
+    """'Yamal 202 (NORAD 28089)' from targets.yaml -- what a figure title should say."""
+    try:
+        cfg = load_targets(path)
+    except OSError:
+        return f"NORAD {norad}"
+    for target in (cfg.get("targets") or {}).values():
+        if isinstance(target, dict) and target.get("norad") == norad and target.get("name"):
+            return f"{target['name']} (NORAD {norad})"
+    return f"NORAD {norad}"
 
 
 def set_seed(seed):
@@ -63,12 +76,18 @@ def datasets_for(seq_dim, train_size, device):
 
 
 def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, device,
-             prefix, model_name, domain="TargetDomain", plots=True):
+             prefix, model_name, domain="TargetDomain", plots=True, title=None, detail=""):
     """Standard plot set (HANDOFF 6.1) + the metrics every row needs.
 
+    `domain` is the filename fragment (HANDOFF 6.1 naming). `title` is what the figures
+    say; it defaults to `domain` for the branches that really do have a source and a
+    target domain. A branch with no transfer step passes its own title -- there is no
+    target domain when nothing was transferred.
+
     Returns a dict of result-row fields. Teacher-forced and rollout are always produced
-    together (guardrail 9.3.3) and the noise floor always travels with them (9.3.4).
+    together (guardrail 9.3.3) and the hand-off statistic always travels with them (9.3.4).
     """
+    subject = domain if title is None else title
     train_in, train_out, test_in, test_out = create_datasets(seq_nd, 1, train_size, device)
     t_periods = t_sec / period_sec
     test_size = len(seq_nd) - train_size
@@ -84,27 +103,33 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
 
     if plots:
         FIGDIR.mkdir(exist_ok=True)
-        plt.gcf().suptitle(TRUTH_NOTE, fontsize=8)
+        _title_fig("State prediction", subject, detail,
+                   size=(12, 7.5), top=0.93)
         _save(f"{prefix}-{domain}Prediction-{model_name}.pdf")
 
-        plot3dOrbitPredictions(seq_dim, tf_dim, networkLabel=model_name,
-                               title=f"{domain}\n{TRUTH_NOTE}")
+        plot3dOrbitPredictions(seq_dim, tf_dim, networkLabel=model_name, title="")
+        _title_fig("Orbit", subject, detail, size=(8, 6.5), top=0.88)
         _save(f"{prefix}-{domain}Orbit-{model_name}.pdf")
 
+        # no `units=`: with percentError=True qutils labels the axes '% Error' itself.
+        # Passing UNITS overrode that and put "km" / "km/s" on a percent-error plot.
         newPlotSolutionErrors(seq_dim, tf_dim, t_periods, timeLabel="Periods",
-                              percentError=True, states=STATES, units=UNITS)
-        plt.gcf().set_size_inches(10, 8)
+                              percentError=True, states=STATES)
+        _title_fig("Percent error per state", subject, detail,
+                   size=(11, 8.5), top=0.94)
         _save(f"{prefix}-{domain}PredictionError-{model_name}.png")
 
         plotEnergy(seq_dim, tf_dim, t_periods, orbitalEnergyJ2,
                    xLabel="Number of Periods (T)", yLabel="J2 energy (km$^2$/s$^2$)",
-                   networkLabel=f"{model_name} {domain}")
-        plt.gcf().suptitle(TRUTH_NOTE, fontsize=8)
+                   networkLabel=model_name)
+        _title_fig("Conserved quantity", subject, detail,
+                   size=(8, 5.5), top=0.88)
         _save(f"{prefix}-{domain}ConservedQuantity-{model_name}.pdf")
 
         mt.plot_rollout_error(ro_dim, seq_dim, t_sec, period_sec, handoff,
                               path=FIGDIR / f"{prefix}-{domain}Rollout-{model_name}.png",
-                              title=f"{prefix} {domain} closed-loop rollout",
+                              title=f"Closed-loop rollout - {subject}"
+                                    + (f"\n{detail}" if detail else ""),
                               label=model_name, origin=origin)
 
     test = slice(origin + 1, None)                  # strictly after the last observed state
@@ -121,6 +146,26 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
         handoff_med_km=med, handoff_p95_km=p95, handoff_n=mt.handoff_count(handoff),
         origin_sec=float(t_sec[origin]),
     )
+
+
+def _title_fig(kind, subject, detail="", size=None, top=0.90):
+    """Title the current figure without letting the title land on the axes.
+
+    Two lines: what the figure shows and of what, then the run detail and the truth note.
+    suptitle draws in figure coordinates, so on a multi-panel figure it overlaps the top
+    row unless the axes are shrunk to make room -- that is what `rect` does here.
+    """
+    fig = plt.gcf()
+    if size:
+        fig.set_size_inches(*size)
+    second = f"{detail} | {TRUTH_NOTE}" if detail else TRUTH_NOTE
+    fig.suptitle(f"{kind} - {subject}\n{second}", fontsize=11)
+    with warnings.catch_warnings():        # 3-D axes are not tight_layout-compatible
+        warnings.simplefilter("ignore")
+        try:
+            fig.tight_layout(rect=(0, 0, 1, top))
+        except Exception:
+            fig.subplots_adjust(top=top)
 
 
 def _save(name):

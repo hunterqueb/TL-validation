@@ -1,0 +1,6 @@
+numpy<2
+scipy
+torch
+matplotlib
+pytest
+# Also requires the already installed qutils.ml.mamba; do not reinstall sibling repos.
