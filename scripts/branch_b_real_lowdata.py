@@ -56,8 +56,9 @@ def main():
     budget = {"asc": "train 1 period",
               "asc2": "train 1 period",
               "dddas": f"train {train_size} points"}[a.style]
-    detail = (f"{a.model.upper()}; {budget}; "
-              f"seed {a.seed}; window {a.window_index}")
+    # Seed and window stay off the figure: they are in the file name and the CSV row,
+    # which is where they are needed to tell runs apart.
+    detail = f"{a.model.upper()}; {budget}"
     prefix = f"{a.norad}-b-{a.style}-s{a.seed}"
     row = evaluate(model, seq_nd, w["seq"], w["t_sec"], w["period_sec"], train_size,
                    w["handoff"], device, prefix, a.model.upper(),

@@ -107,7 +107,7 @@ def plot_rollout_error(pred, truth, t_sec, period_sec, handoff_jump_km, path=Non
     ax.semilogy(periods, err, lw=1.2, label=f"{label} rollout")
     ax.set_xlabel("Periods since the forecast origin (T)")
     ax.set_ylabel("Position error (km)")
-    ax.set_title(f"{title}\ntruth = SGP4 from space-track TLEs", fontsize=10)
+    ax.set_title(title, fontsize=10)
     ax.grid(alpha=0.3)
     ax.legend(fontsize=8)
     fig.tight_layout()

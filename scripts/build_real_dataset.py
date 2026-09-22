@@ -67,8 +67,8 @@ def main():
                    label=f"p95 {meta['handoff_p95_km']:.2f} km")
         ax.set_xlabel("TLE hand-off position jump (km)")
         ax.set_ylabel("count")
-        ax.set_title(f"{a.norad} truth noise floor ({a.minutes} min windows)\n"
-                     "truth = SGP4 from space-track TLEs", fontsize=10)
+        ax.set_title(f"{a.norad} TLE hand-off consistency ({a.minutes} min windows)",
+                     fontsize=10)
         ax.legend()
         fig.tight_layout()
         path = pathlib.Path("figures") / f"{a.norad}-{a.minutes}min-HandoffJump.png"

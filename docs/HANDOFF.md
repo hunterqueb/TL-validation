@@ -512,13 +512,15 @@ Reproduce the ASC 2025 figure kinds with the same qutils calls so figures are di
 
 File names: `figures/<object>-<branch>-<style>-s<seed>-<Domain><Plot>-<model>.pdf`, e.g.
 `28089-c-full-mamba-s0-TargetDomainConservedQuantity-Mamba.pdf`. Style, seed and transfer
-mode are in the name so a run matrix does not overwrite itself (REV-09).
+mode are in the name so a run matrix does not overwrite itself (REV-09). Seed and window
+are deliberately *not* in the title: they are in the file name and the CSV row.
 
 `<Domain>` is `SourceDomain` / `TargetDomain` only where a source and a target actually
 exist, which means branches (a) and (c). **Branch (b) trains from scratch on real data with
 no transfer step, so its fragment is `Real`** and its figure titles say neither "source" nor
-"target domain" — there is no domain transfer to name. Every figure title carries the object
-(`Yamal 202 (NORAD 28089)`), what the figure shows, and the run's budget/seed/window.
+"target domain" — there is no domain transfer to name. A figure title is two lines: what the
+figure shows and of what (`State prediction, teacher forced - Yamal 202 (NORAD 28089)`), then
+the model and training budget.
 
 ### 6.2 Milestones
 
@@ -660,7 +662,10 @@ artifact exists, and its test (if any) passes. Do not start branch (c) before M1
 6. Equal-budget rule for TL comparisons (section 6.2).
 7. Any deviation from the ASC hyper-parameters goes into the CSV as a column, not a comment.
 8. Keep `tlv/` at six modules. If a seventh seems necessary, write the reason in this file first.
-9. Real-data plots carry the text "truth = SGP4 from space-track TLEs" in the figure title or caption.
+9. ~~Real-data plots carry the text "truth = SGP4 from space-track TLEs" in the figure
+   title or caption.~~ **Dropped 2026-09-22 (Hunter):** the note is off the figures. Truth
+   provenance lives in the dataset `meta.json` (TLE sha256, sgp4 version, frame chain) and
+   in this document; a figure reused outside the repo must carry it in its caption.
 
 ### 9.4 Tests that must exist
 

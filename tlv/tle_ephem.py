@@ -1,7 +1,7 @@
 """Convert a TLE list to a 60 s J2000 ephemeris with the GMAT array layout.
 
-This is the only place where "real" data is created. Truth quality is SGP4 quality:
-every plot made from these arrays must say "truth = SGP4 from space-track TLEs".
+This is the only place where "real" data is created. Truth quality is SGP4 quality
+(km-level), which is what the hand-off consistency statistic in section 2 measures.
 """
 import json
 import pathlib

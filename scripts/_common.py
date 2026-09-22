@@ -25,7 +25,6 @@ from tlv import metrics as mt
 from tlv.train import predict_teacher_forced, rollout, STATES, UNITS
 
 FIGDIR = pathlib.Path("figures")
-TRUTH_NOTE = "truth = SGP4 from space-track TLEs"
 
 
 def load_targets(path="configs/targets.yaml"):
@@ -151,15 +150,14 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
 def _title_fig(kind, subject, detail="", size=None, top=0.90):
     """Title the current figure without letting the title land on the axes.
 
-    Two lines: what the figure shows and of what, then the run detail and the truth note.
+    Two lines: what the figure shows and of what, then the run detail.
     suptitle draws in figure coordinates, so on a multi-panel figure it overlaps the top
     row unless the axes are shrunk to make room -- that is what `rect` does here.
     """
     fig = plt.gcf()
     if size:
         fig.set_size_inches(*size)
-    second = f"{detail} | {TRUTH_NOTE}" if detail else TRUTH_NOTE
-    fig.suptitle(f"{kind} - {subject}\n{second}", fontsize=11)
+    fig.suptitle(f"{kind} - {subject}" + (f"\n{detail}" if detail else ""), fontsize=11)
     with warnings.catch_warnings():        # 3-D axes are not tight_layout-compatible
         warnings.simplefilter("ignore")
         try:
