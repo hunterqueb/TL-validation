@@ -104,7 +104,7 @@ agents *after* a single seed-0 run has produced a correct plot set.
 7. **Spec changes go to `HANDOFF.md` first.** If you must deviate (a function signature, a
    threshold), edit `HANDOFF.md`, note the change in the Decision Log below, then implement.
 8. **Guardrails in `HANDOFF.md` §9.3 are non-negotiable.** In particular: no teacher-forced
-   number without its rollout number; no error without the noise floor; ≥ 3 seeds for any
+   number presented as propagation; no error without the noise floor; ≥ 3 seeds for any
    headline; equal-budget rule for TL comparisons.
 9. **Six modules in `tlv/`.** A seventh requires a Decision Log entry with the reason.
 10. **Results are append-only CSV rows** (`tlv/metrics.py::append_result`). Never edit a row.
@@ -141,7 +141,6 @@ agents *after* a single seed-0 run has produced a correct plot set.
 |---|---|---|
 | TLE hand-off jumps too large for the object/window | M0 p95 > 10 km | Change window (avoid Ap > 30 days) before changing object; log both attempts |
 | Synthetic-vs-real gap dominated by drag/space weather (F8) | P3 sanity plot > 20 km at 1 T | Record it; optionally do R2-04 space weather; do not tune |
-| Rollout diverges within 1 period for all models | P2 rollout_pos_1T_km > 1000 | Still report it. This is a finding about the method, not a bug, unless teacher-forced MAPE is also bad |
 | `captum`/`shap` import breaks `qutils.ml` | ImportError on `import qutils.ml` | `pip install captum pandas` or import submodules directly |
 | GMAT Python API unavailable on the agent's machine | `load_gmat` fails | Lane C is Hunter-run; agent prepares config + patch only, marks task `awaiting_review` |
 | space-track rate limit | HTTP 429 / login failures | One request per (object, window); cache is mandatory; back off 60 s |
@@ -275,4 +274,4 @@ LSTM's on all six states in all three styles. What the next agent must know:
 | 2026-09-21 | `summarize.py` groups by `window` as well as (object, branch, style, model, tl_mode) | Found while testing the run scripts' `WINDOW` override: rows from two different time windows were landing in one median, which is exactly the unpaired aggregation REV-05/REV-09 warns about. Windows now get their own row; seeds still vary within one | `scripts/summarize.py` |
 | 2026-09-22 | Branch (b) figures use the `Real` filename fragment and name the object in the title; no "target domain" anywhere in branch (b) | Nothing is transferred in branch (b), so calling its data a target domain describes an experiment that did not happen. Also fixed: the suptitle overlapped the top row of every multi-panel figure, and `percentError=True` plots were labelled km / km/s because `_common.py` passed `units=` and overrode qutils' '% Error' default | `scripts/_common.py`, `scripts/branch_b_real_lowdata.py`, HANDOFF §6.1 |
 | 2026-09-22 | Figure titles drop the seed, the window and the "truth = SGP4 from space-track TLEs" note; guardrail 9.3.9 is retired | Hunter. Seed and window are in the file name and the CSV row, so on the figure they are noise. Truth provenance stays in the dataset `meta.json` and in HANDOFF; a figure reused outside the repo needs it in the caption | `scripts/_common.py`, `scripts/branch_b_real_lowdata.py`, `tlv/metrics.py`, `scripts/build_real_dataset.py`, HANDOFF §6.1/§9.3 |
-
+| 2026-09-22 | Closed-loop rollout metric removed: `rollout()`, `position_error_at`, `plot_rollout_error`, the `rollout_pos_{1T,5T}_km` columns, the Rollout figure and their tests | Hunter. Supersedes the 2026-09-16 entry; guardrail 9.3.3 now forbids presenting teacher-forced numbers as propagation instead. Existing CSVs keep their old header and new rows leave those columns blank | `tlv/train.py`, `tlv/metrics.py`, `scripts/_common.py`, `scripts/summarize.py`, `tests/test_transfer.py`, HANDOFF §1 F3, §3.5, §3.6, §6.1, §6.2, §9.3 |

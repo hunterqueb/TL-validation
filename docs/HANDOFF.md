@@ -62,10 +62,10 @@ The paper text says "all parameters still trainable". Use two explicit modes in 
 
 **F3. "Long-term propagation" in past work is teacher-forced one-step prediction.**
 `qutils.ml.regression.genPlotPrediction` computes `model(test_in)`, where `test_in` is the
-*true* previous state at every step. There is no closed-loop rollout. This demo keeps the
-teacher-forced metric (for comparability with the papers) and adds a closed-loop rollout metric
-(`tlv/train.py::rollout`). Both are reported on every plot set. Expect rollout error to be much
-larger; that is the honest number for "propagation".
+*true* previous state at every step. There is no closed-loop rollout. This demo reports the
+teacher-forced metric (for comparability with the papers) and does not claim it measures
+propagation. A closed-loop rollout metric was added and later removed (PLAN Decision Log,
+2026-09-22).
 
 **F4. `qutils.orbital` non-dimensionalization does not round-trip.**
 `dim2NonDim6` default `TU = sqrt(6378.1**3 / 3.968e5)` = 808.63 s (μ typo: 396800).
@@ -160,7 +160,7 @@ tl-validation/
 │   ├── tle_ephem.py            TLE list -> SGP4 segments -> J2000 -> statesArrayReal.npz
 │   ├── datasets.py             load synthetic/real npz, non-dim, windows, nearest-neighbour source pick
 │   ├── models.py               returnModel(), transfer(mode)
-│   ├── train.py                fit(), predict_teacher_forced(), rollout()
+│   ├── train.py                fit(), predict_teacher_forced()
 │   └── metrics.py              mape, rmse, energy drift, noise floor, results CSV
 ├── scripts/
 │   ├── fetch_tles.py
@@ -330,15 +330,6 @@ def fit(model, seq, train_size, epochs, lr, criterion, device):
 
 def predict_teacher_forced(model, t, seq, train_in, test_in, train_size, test_size, **plot_kw):
     """Return the (T, 6) prediction array from qutils.plot.plotStatePredictions."""
-
-
-def rollout(model, seq, train_size, device):
-    """Closed-loop prediction from the forecast origin: the model is fed its own output.
-
-    The origin is index train_size, the *last observed state* (with lookback 1 the training
-    transitions end at x_{train_size-1} -> x_{train_size}). Return (T, 6) with NaN for
-    j <= train_size. This is the honest propagation metric (F3).
-    """
 ```
 
 ### 3.6 `tlv/metrics.py`
@@ -353,15 +344,12 @@ def rollout(model, seq, train_size, device):
 - `energy_drift(seq_dim, mu, Re)` using `qutils.orbital.orbitalEnergyJ2` (two-body energy
   oscillates ~0.1 % under J2; the J2-corrected energy is the right conserved-ish quantity
   for LEO).
-- `position_error_at(pred, truth, t, periods, origin)` → km at 1, 2, 5 periods **measured
-  from the forecast origin**, the last observed state (`origin=train_size`). NaN when the
-  window ends before the horizon. Window-relative horizons were the REV-02 defect.
 - `noise_floor(handoff_jump_km)` → median, p95 of the TLE hand-off jumps, **NaN when the
   window holds no hand-off** (absent evidence, not zero uncertainty — REV-01).
   `handoff_count()` reports how many hand-offs the statistic rests on.
 - `append_result(csv_path, row)` with fixed columns:
   `run_id, branch, style, object, window, model, tl_mode, train_periods, epochs_src,
-  epochs_tgt, mape_x..mape_vz, rmse_pos_km, rollout_pos_1T_km, rollout_pos_5T_km,
+  epochs_tgt, mape_x..mape_vz, rmse_pos_km,
   energy_drift_pct, handoff_med_km, handoff_p95_km, handoff_n, origin_sec, tle_sha256,
   train_s, seed`. `window`, `origin_sec` and `tle_sha256` make a row say which data it came
   from and where its forecast started (REV-09).
@@ -395,10 +383,8 @@ Target objects (`configs/targets.yaml`):
 | Contaminated (optional) | ISS | 25544 | Known reboosts. Use only to show that a maneuver breaks all three branches — not for the headline numbers. |
 
 Windows: ASC-style = **6 orbital periods = 8620 samples** for Yamal 202 (5.99 days): one
-training period plus the full five-period forecast horizon, so `rollout_pos_5T_km` is a
-measured number rather than a NaN off the end of the window (REV-02). At the original five
-periods the window stopped 0.0002 periods short of even a 4T horizon measured from the
-forecast origin. The training span is unchanged at one period, so the equal-budget rule is
+training period plus five test periods (sized originally for the since-removed rollout
+horizons). The training span is unchanged at one period, so the equal-budget rule is
 unaffected; only the ASC train fraction moves from 1/5 to 1/6. DDDAS-style long-term = 7 days
 = 10080 samples = 7.02 periods. Both cut from the same TLE history so the epoch is identical. **Note (2026-09-17):** at GEO these two windows nearly coincide — for the
 original LEO target they differed by 20×. The ASC-vs-DDDAS distinction is now "5 periods at
@@ -473,8 +459,7 @@ Order is strict. Each step ends with a runnable command and an artifact.
 
 **Step 4 — branch (a), zero-shot**
 1. Port `mambaTLCR3BP.py` source half; train on 1 synthetic period, plot source domain.
-2. Evaluate the same model on the real 5-period window without training (teacher-forced and
-   rollout). This reproduces the ASC procedure as run (F1).
+2. Evaluate the same model on the real 5-period window without training (teacher-forced). This reproduces the ASC procedure as run (F1).
 
 **Step 5 — branch (c), transfer**
 1. Same source model as step 4, then `transfer(mode)` and `fit(newModel, real, train_size=1 period,
@@ -487,7 +472,7 @@ Order is strict. Each step ends with a runnable command and an artifact.
 Repeat (a), (b), (c) on the 7-day window. This is the "long term propagation" deliverable of (b).
 
 **Step 7 — summary**
-`python scripts/summarize.py` → `figures/Summary-MAPE.pdf`, `figures/Summary-Rollout.pdf`,
+`python scripts/summarize.py` → `figures/Summary-MAPE.pdf`,
 `results/summary.md` (MAPE table in the Table 1–3 format of the ASC paper, plus noise floor row).
 
 **Step 8 — pendulumRNN back-port**
@@ -508,7 +493,6 @@ Reproduce the ASC 2025 figure kinds with the same qutils calls so figures are di
 | 3-D orbit, truth / Mamba / LSTM | `plot3dOrbitPredictions(..., networkLabel='Mamba')` + LSTM line | ASC Figs. 6, 7 (`...-SourceDomainPrediction.pdf`) |
 | Percent error per state | `newPlotSolutionErrors(..., percentError=True)` | ASC Figs. 10–13 (`...-PredictionError<Model>.png`) |
 | Conserved quantity | `plotEnergy(..., orbitalEnergyJ2, xLabel='Number of Periods (T)')` | ASC Figs. 8, 9 (`...-ConservedQuantity.pdf`) |
-| **New:** rollout position error vs periods, with the hand-off noise floor as a shaded band | matplotlib in `tlv/metrics.py` | none — this is the honest addition |
 
 File names: `figures/<object>-<branch>-<style>-s<seed>-<Domain><Plot>-<model>.pdf`, e.g.
 `28089-c-full-mamba-s0-TargetDomainConservedQuantity-Mamba.pdf`. Style, seed and transfer
@@ -535,10 +519,10 @@ not a failure.
 | # | Milestone | Gate | Target |
 |---|---|---|---|
 | M0 | Real dataset built and validated | `pytest tests/` green; hand-off median < 2 km, p95 < 10 km; `meta.json` has TLE sha256 | 45-day span, no maneuver signature (Ap is not a GEO criterion) |
-| M1 | Branch (b) ASC-style (train 1 period, test 4) | Runs end-to-end for Mamba and LSTM, 3 seeds; plot set + CSV rows written | Mamba teacher-forced position MAPE ≤ 1 %; Mamba < LSTM on every state; rollout position error at 1 T reported |
-| M1b | Branch (b) DDDAS-style (2 points, 7 days) | Same as M1 on the 7-day window | Mamba energy drift < 1 % over 7 days (teacher-forced); rollout reported |
+| M1 | Branch (b) ASC-style (train 1 period, test 4) | Runs end-to-end for Mamba and LSTM, 3 seeds; plot set + CSV rows written | Mamba teacher-forced position MAPE ≤ 1 %; Mamba < LSTM on every state |
+| M1b | Branch (b) DDDAS-style (2 points, 7 days) | Same as M1 on the 7-day window | Mamba energy drift < 1 % over 7 days (teacher-forced) |
 | M2 | Branch (a) zero-shot | Source-domain plots match ASC source quality (Mamba position MAPE ≤ 0.1 % on synthetic); real-target numbers written with noise floor | Zero-shot degradation quantified (expected large); Mamba < LSTM |
-| M3 | Branch (c) transfer | `full` and `feature`, Mamba and LSTM, 3 seeds; corrected training loop verified by a unit test that asserts `newModel` parameters change | **Headline:** Mamba TL (2 target epochs) beats Mamba from-scratch (branch b, 2 epochs on the same period) and beats zero-shot (a), on teacher-forced MAPE *and* rollout at 1 T, median over seeds |
+| M3 | Branch (c) transfer | `full` and `feature`, Mamba and LSTM, 3 seeds; corrected training loop verified by a unit test that asserts `newModel` parameters change | **Headline:** Mamba TL (2 target epochs) beats Mamba from-scratch (branch b, 2 epochs on the same period) and beats zero-shot (a), on teacher-forced MAPE, median over seeds |
 | M4 | Long-term (7-day) versions of a/b/c + summary figures + `results/summary.md` | Summary table has one row per (branch, model, tl_mode) with median ± spread over seeds and the noise-floor row | TL advantage persists on the 7-day window |
 | M5 | pendulumRNN F1 fix and corrected CR3BP tables | Pairs 1–3 re-run, tables in repo | Corrected fine-tuned numbers ≤ the paper's zero-shot numbers (if not, say so) |
 
@@ -656,7 +640,7 @@ artifact exists, and its test (if any) passes. Do not start branch (c) before M1
 1. Never modify arrays in place before nondimensionalizing (`dim2NonDim6` mutates its input).
    `nondim()` copies.
 2. Never compare real TLE mean elements to `TLEArray*` (F6).
-3. Never report a teacher-forced number without the rollout number next to it (F3).
+3. Never present a teacher-forced number as a propagation result (F3).
 4. Never report an error metric without the hand-off noise floor next to it (section 2).
 5. Every result row has a seed; every headline number is a median over ≥ 3 seeds.
 6. Equal-budget rule for TL comparisons (section 6.2).

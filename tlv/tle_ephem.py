@@ -1,8 +1,4 @@
-"""Convert a TLE list to a 60 s J2000 ephemeris with the GMAT array layout.
-
-This is the only place where "real" data is created. Truth quality is SGP4 quality
-(km-level), which is what the hand-off consistency statistic in section 2 measures.
-"""
+"""Convert a TLE list to a 60 s J2000 ephemeris with the GMAT array layout (SGP4-quality truth)."""
 import json
 import pathlib
 
@@ -35,23 +31,17 @@ def period_sec(sat):
 
 
 def segment_ephemeris(sats, dt=DT):
-    """Propagate each TLE from its epoch to the next TLE epoch.
+    """Propagate each TLE on a uniform grid from its own epoch to the next TLE's epoch.
 
-    Every sample uses the most recent TLE not later than that sample, so each TLE is
-    only ever used inside its own validity window. Samples sit on one uniform grid
-    starting at the first TLE epoch.
-
-    Return r (M, 3) km, v (M, 3) km/s in TEME, t_jd (M,), tle_index (M,), jump_km (M,).
-    jump_km[k] is |r_new - r_old| at the first sample of a new TLE, else 0 -- the noise
-    floor of the truth (HANDOFF section 2).
+    Returns r, v (M, 3) TEME km, km/s; t_jd; tle_index; jump_km, which is |r_new - r_old|
+    at the first sample of each new TLE and 0 elsewhere.
     """
     epochs = np.array([jd for jd, _ in sats])
     jd0 = epochs[0]
     n = int((epochs[-1] - jd0) * 86400.0 / dt) + 1
     fr = np.arange(n) * dt / 86400.0
-    # index of the TLE in force at each sample. epochs - jd0 cancels ~7 digits off a
-    # 2.4e6-sized JD, so an epoch that should land exactly on a sample can come out a few
-    # tens of us late; nudge the boundaries down by 0.1 ms so the new TLE wins the tie.
+    # epochs - jd0 loses ~7 digits, so an epoch on a sample can land a few us late;
+    # shift the boundaries 0.1 ms early so the new TLE wins the tie.
     tle_index = np.searchsorted(epochs - jd0 - 1e-9, fr, side="right") - 1
 
     r = np.empty((n, 3))
@@ -108,7 +98,7 @@ def to_windows(states, t_jd, tle_index, jump_km, minutes, n_windows=None, dt=DT)
 
 
 def write_real_npz(path, windows, meta):
-    """Write statesArrayReal.npz + meta.json with the keys of HANDOFF section 2."""
+    """Write statesArrayReal.npz + meta.json."""
     path = pathlib.Path(path)
     path.mkdir(parents=True, exist_ok=True)
     np.savez(path / "statesArrayReal.npz", **windows)

@@ -44,16 +44,14 @@ def cache_path(norad, start, stop, cache_dir="data/tle"):
 
 
 def sha256(text):
-    """sha256 of the cache file contents -- the unit of reproducibility (HANDOFF 3.1)."""
+    """sha256 of the cache file contents -- identifies the data behind a result."""
     return hashlib.sha256(text.encode()).hexdigest()
 
 
 def fetch_tle_history(norad, start, stop, cache_dir="data/tle"):
-    """Return the TLE text for one object in [start, stop].
+    """TLE text for `norad` in [start, stop] (ISO dates): the cache, else one space-track query.
 
-    Read the cache first. Query space-track only when the cache file is absent.
-    Dates are ISO strings, for example "2026-01-01". One request per (object, window):
-    the rate limit is 30/min and 300/hour, so never loop over days.
+    Rate limit is 30/min and 300/hour, so query once per window, never per day.
     """
     path = cache_path(norad, start, stop, cache_dir)
     if path.exists():
@@ -72,8 +70,7 @@ def fetch_tle_history(norad, start, stop, cache_dir="data/tle"):
     if not text.strip():
         raise RuntimeError(f"space-track returned no TLEs for {norad} in {start}--{stop}")
 
-    # space-track sends CRLF; read_text() translates it back to LF, so hash and store the
-    # normalized text or the sha256 in meta.json will not match the file on disk.
+    # space-track sends CRLF; normalize so the sha256 matches the file read back.
     text = text.replace("\r\n", "\n")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text)

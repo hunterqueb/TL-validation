@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""TLE cache -> statesArrayReal.npz + meta.json + hand-off histogram (P1-06, P1-07)."""
+"""TLE cache -> statesArrayReal.npz + meta.json + hand-off histogram."""
 import argparse
 import pathlib
 import sys
@@ -77,8 +77,8 @@ def main():
         print(f"wrote {path}")
 
     if meta["handoff_median_km"] >= 2.0 or meta["handoff_p95_km"] >= 10.0:
-        print("WARNING: M0 gate failed -- see PLAN.md section 6, risk 1 (change the window "
-              "before changing the object; log both attempts)")
+        print("WARNING: hand-off gate failed (median >= 2 km or p95 >= 10 km) -- change the "
+              "window before changing the object; log both attempts")
 
 
 if __name__ == "__main__":

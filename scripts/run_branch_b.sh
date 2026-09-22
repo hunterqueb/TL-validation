@@ -1,13 +1,13 @@
 #!/bin/sh
-# Branch (b): train from scratch on very little real data. Milestones M1 and M1b.
+# Branch (b): train from scratch on very little real data.
 #
 #   ./scripts/run_branch_b.sh              # all three styles, both models, 3 seeds (18 runs)
 #   ./scripts/run_branch_b.sh asc asc2     # only these styles
 #   SEEDS=0 MODELS=mamba ./scripts/run_branch_b.sh dddas
 #
-# asc    train on the first period, 5 epochs  (M1)
+# asc    train on the first period, 5 epochs
 # asc2   same window, 2 epochs -- the equal-budget row branch (c) is compared against
-# dddas  train on the first 2 points, 50 epochs, d_conv 16, 7-day window  (M1b)
+# dddas  train on the first 2 points, 50 epochs, d_conv 16, 7-day window
 . "$(dirname "$0")/_common.sh"
 
 STYLES=${*:-"asc asc2 dddas"}

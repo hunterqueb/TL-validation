@@ -1,4 +1,4 @@
-"""Model construction and transfer, exactly as in the ASC 2025 script (HANDOFF section 3.4)."""
+"""Model construction and transfer, as in the ASC 2025 script."""
 import torch
 
 from qutils.ml.mamba import Mamba, MambaConfig
@@ -16,10 +16,9 @@ def return_model(kind, device, d_model=6, n_layers=1, d_conv=4, lstm_hidden=30):
 
 
 def transfer(source, target, mode):
-    """'full' -> transferModelAll (every parameter trainable);
-    'feature' -> transferMamba(..., [True, True, True]): in_proj and A_log stay frozen (F2).
+    """'full': every parameter trainable. 'feature': in_proj and A_log frozen.
 
-    LSTM uses transferModelAll in both modes -- transferLSTM leaves `fc` random (HANDOFF 7).
+    LSTM always uses transferModelAll: transferLSTM leaves `fc` random.
     """
     if mode.startswith("full"):
         return transferModelAll(source, target)

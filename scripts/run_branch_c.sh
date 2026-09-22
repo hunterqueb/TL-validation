@@ -1,14 +1,13 @@
 #!/bin/sh
 # Branch (c): synthetic pretrain -> 2-epoch real fine-tune, the corrected ASC loop.
-# Milestone M3. PLAN hard rule: do not run this until M1 and M2 are green.
+# Run it only after branches (a) and (b) have produced results.
 #
 #   ./scripts/run_branch_c.sh              # {full, feature} x both models x 3 seeds (12 runs)
 #   ./scripts/run_branch_c.sh full         # one transfer mode
-#   ./scripts/run_branch_c.sh full long    # the 7-day window (P6-02)
+#   ./scripts/run_branch_c.sh full long    # the 7-day window
 #
-# Equal-budget rule (HANDOFF 6.2): the comparison row is branch (b) --style asc2 at the same
-# window and seed. Run ./scripts/run_branch_b.sh asc2 and ./scripts/run_branch_a.sh first --
-# (a) saves the source weights that make (a) and (c) share identical initial weights.
+# Compared against branch (b) asc2 at the same window and seed. Run
+# ./scripts/run_branch_a.sh first so (a) and (c) share source weights.
 . "$(dirname "$0")/_common.sh"
 
 MODES=${1:-"full feature"}

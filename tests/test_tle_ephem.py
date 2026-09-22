@@ -1,4 +1,4 @@
-"""HANDOFF section 3.2: SGP4 self-check, frame invariance, hand-off statistics."""
+"""SGP4 self-check, frame invariance, hand-off statistics."""
 import json
 import pathlib
 
@@ -85,11 +85,11 @@ def _real_dirs():
     return sorted(REAL_ROOT.glob("*/*/meta.json")) if REAL_ROOT.exists() else []
 
 
-@pytest.mark.skipif(not _real_dirs(), reason="no real dataset built yet (P1-06)")
+@pytest.mark.skipif(not _real_dirs(), reason="no real dataset built yet (scripts/build_real_dataset.py)")
 @pytest.mark.parametrize("meta_path", _real_dirs(), ids=lambda p: str(p.parent))
 def test_handoff_statistics_gate(meta_path):
-    """M0 gate: median hand-off jump < 2 km, p95 < 10 km. Otherwise the object or the
-    window is unsuitable -- see PLAN.md section 6, risk 1."""
+    """Hand-off gate: median jump < 2 km, p95 < 10 km. Otherwise the window (then the
+    object) is unsuitable."""
     meta = json.loads(meta_path.read_text())
     assert meta["handoff_median_km"] < 2.0, meta
     assert meta["handoff_p95_km"] < 10.0, meta

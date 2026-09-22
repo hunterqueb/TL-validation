@@ -12,7 +12,7 @@ DATA_YAML = pathlib.Path(__file__).resolve().parents[1] / "data.yaml"
 
 
 def data_root(key="gmat"):
-    """Path from data.yaml. Keeps the big GMAT sets out of this repo (no symlink, no copy)."""
+    """Path for `key` from data.yaml."""
     cfg = yaml.safe_load(DATA_YAML.read_text())
     if key not in cfg:
         raise KeyError(f"{key!r} not in {DATA_YAML}: has {sorted(cfg)}")
@@ -21,11 +21,9 @@ def data_root(key="gmat"):
 
 def load_synthetic(root=None, dataset="regression", orbit="leo",
                    minutes=450, n_sys=10000, tag="NoThrust"):
-    """Load statesArray<tag>.npz from <gmat>/<dataset>/<orbit>/<minutes>min-<n_sys>.
+    """Load <root>/<dataset>/<orbit>/<minutes>min-<n_sys>/statesArray<tag>.npz.
 
-    `root` defaults to the `gmat` key of data.yaml.
-    GMAT sample j is the state after the (j+1)-th step, so t_j = (j+1)*dt (HANDOFF F5).
-    Returns (states (N, T, 6), t_sec (T,), extras dict of any metadata keys present).
+    Returns (states (N, T, 6), t_sec (T,), extras). t_j = (j+1)*dt: GMAT sample j follows step j+1.
     """
     root = data_root() if root is None else pathlib.Path(root)
     path = root / dataset / orbit / f"{minutes}min-{n_sys}" / f"statesArray{tag}.npz"
@@ -49,7 +47,7 @@ def load_real(norad, minutes, n_windows, root="data/real"):
 
 
 def nondim(states, DU=DU_EARTH, TU=TU_EARTH):
-    """dim2NonDim6 with explicit DU, TU (HANDOFF F4). Copies -- dim2NonDim6 mutates."""
+    """dim2NonDim6 with explicit DU, TU (the qutils defaults once disagreed). Copies -- dim2NonDim6 mutates."""
     return dim2NonDim6(np.array(states, dtype=float, copy=True), DU, TU)
 
 
@@ -64,10 +62,7 @@ def split_periods(seq, period_sec, train_periods, dt=DT):
 
 
 def nearest_synthetic(oe_target, oe_bank, k=1):
-    """Indices of the k synthetic trajectories nearest oe_target in [a (km), e, i (rad)].
-
-    Distance is normalized by (100 km, 0.01, 5 deg). Used only in branch (c)-multi.
-    """
+    """(indices, distances) of the k bank rows nearest oe_target in scaled [a, e, i]."""
     scale = np.array([100.0, 0.01, np.deg2rad(5.0)])
     d = np.linalg.norm((np.asarray(oe_bank)[:, :3] - np.asarray(oe_target)[:3]) / scale, axis=1)
     idx = np.argsort(d)[:k]

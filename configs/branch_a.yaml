@@ -1,5 +1,5 @@
 # Branch (a) zero-shot OOD: train on matched synthetic, evaluate on real with NO training.
-# This is the ASC 2025 procedure as it actually runs (HANDOFF F1).
+# This is what the ASC 2025 script actually did: its target model was never trained.
 branch: a
 source: {kind: synthetic, orbit: geo, minutes: 8620, n_sys: 10, index: 0, train_periods: 1}
 target: {kind: real, train_periods: 0}     # no target training

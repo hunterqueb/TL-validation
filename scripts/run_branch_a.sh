@@ -1,14 +1,12 @@
 #!/bin/sh
 # Branch (a): train on the matched GMAT source, evaluate on real with NO target training.
-# The ASC 2025 procedure as it actually runs (HANDOFF F1), and the baseline (c) must beat.
-# Milestone M2. Saves the source weights to results/models/ for branch (c) to start from.
+# Saves the source weights to results/models/ for branch (c).
 #
 #   ./scripts/run_branch_a.sh              # both models, 3 seeds (6 runs), ASC window
-#   ./scripts/run_branch_a.sh long         # the 7-day window instead (P6-02)
+#   ./scripts/run_branch_a.sh long         # the 7-day window instead
 #   SEEDS=0 MODELS=mamba ./scripts/run_branch_a.sh
 #
-# Needs the matched GEO source domain from GMAT (TASKS R2-05) -- it stops with the command
-# to produce it if it is missing.
+# Needs the matched GEO source domain (a hand-run GMAT job); stops with the command to build it.
 . "$(dirname "$0")/_common.sh"
 
 case ${1:-asc} in

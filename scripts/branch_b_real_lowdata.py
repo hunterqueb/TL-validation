@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Branch (b): train from scratch on very little real data (P2-04).
+"""Branch (b): train from scratch on very little real data.
 
 --style asc    train on the first period, 5 epochs, test on the remaining 4 (ASC)
 --style asc2   same window, 2 epochs -- the equal-budget row branch (c) is compared against
@@ -50,14 +50,10 @@ def main():
     model = return_model(a.model, device, d_conv=style["d_conv"])
     train_s = fit(model, datasets, style["epochs"], lr=cfg["lr"])
 
-    # Branch (b) trains from scratch on real data: there is no source domain and no
-    # transfer step, so the figures say neither "source" nor "target" domain. The
-    # filename fragment is `Real` for the same reason (HANDOFF 6.1 naming).
+    # no transfer, so the figures name the object rather than a source/target domain
     budget = {"asc": "train 1 period",
               "asc2": "train 1 period",
               "dddas": f"train {train_size} points"}[a.style]
-    # Seed and window stay off the figure: they are in the file name and the CSV row,
-    # which is where they are needed to tell runs apart.
     detail = f"{a.model.upper()}; {budget}"
     prefix = f"{a.norad}-b-{a.style}-s{a.seed}"
     row = evaluate(model, seq_nd, w["seq"], w["t_sec"], w["period_sec"], train_size,

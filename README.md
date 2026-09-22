@@ -4,8 +4,8 @@ Real-world validation of Mamba transfer learning (ASC 2025, AAS 25-543) and low-
 training (DDDAS 2024) on real ephemerides derived from space-track TLEs.
 
 Primary target: **Yamal 202** (NORAD 28089), a GEO comsat — period 1436.09 min, so the
-6-period window is 8620 samples: one training period plus the full five-period forecast
-horizon. Window **2026-02-18 .. 2026-04-08**, screened for maneuvers and TLE cadence by
+6-period window is 8620 samples: one training period plus five test periods. Window
+**2026-02-18 .. 2026-04-08**, screened for maneuvers and TLE cadence by
 `scripts/screen_window.py` before any model was run. The original plan targeted a LEO
 object; see the Decision Log in [docs/PLAN.md](docs/PLAN.md) for what that change costs.
 
@@ -22,9 +22,7 @@ Three branches share one target object and window:
 
 Truth is SGP4-quality (km-level). Every error is reported next to the TLE hand-off
 consistency statistic — successive TLEs disagree by ~0.6 km here, and that is a consistency
-figure, not a calibrated accuracy floor — and every teacher-forced number next to its
-closed-loop rollout number. Rollout horizons are measured from the forecast origin, the last
-observed state.
+figure, not a calibrated accuracy floor.
 
 ## Install
 
@@ -33,7 +31,7 @@ pip install -e ../qutils          # skbuild: if the editable install fails, `pip
 pip install -r requirements.txt
 $EDITOR data.yaml                 # point `gmat` at your GMAT-Thrust-Data/data folder
 cp .env.example .env              # then fill in your space-track credentials
-pytest tests/                     # 20 pass (the hand-off gate needs a built dataset)
+pytest tests/                     # 18 pass (the hand-off gate needs a built dataset)
 ```
 
 `qutils` is installed as a copy, not in editable mode: **re-run `pip install ../qutils`

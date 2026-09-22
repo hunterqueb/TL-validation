@@ -1,15 +1,9 @@
 #!/usr/bin/env python
-"""Write a GMAT-Thrust-Data config matched to one real object and window (R2-03).
+"""Write a GMAT-Thrust-Data config matched to one real object and window.
 
-Emits the schema generateSpacecraftThrustOpt.py reads *today* -- the same shape as
-configs/gmat/gmat_28089_asc.yaml, which was written by hand from this object. SMA is not a
-config key there: the generator builds it as r_p/(1-e) with r_p = R + lowerAlt (R = 6378 km),
-so this pins the periapsis altitude instead.
-
-The epoch and the physical parameters (SRP area, Cr, dry mass) still cannot be set from a
-config -- that needs the HANDOFF section 8.1 patch (R2-01). They are written as a commented
-block. At GEO this matters: SRP is the dominant perturbation and the generator samples its
-area at random per run (H-7).
+SMA is pinned through lowerAlt = upperAlt = r_p - 6378 km (the generator has no SMA key).
+Epoch, SRP area, Cr and dry mass need a fixedElements/epoch patch to the generator and are
+written as a commented block; until then SRP, the dominant GEO perturbation, is random per run.
 """
 import argparse
 import pathlib
@@ -103,7 +97,7 @@ def main():
         f"# B* {bstar:.6e} 1/ER -> Cd*A/m raw {raw:.5f}, clamped {cdam:.5f} m^2/kg"
         f"{'  [B* is 0: no drag fit, expected at GEO]' if bstar == 0 else ''}\n")
     footer = (
-        "\n# --- NOT READ YET: needs the HANDOFF section 8.1 patch (R2-01/R2-02) ---------\n"
+        "\n# --- NOT READ YET: needs a fixedElements/epoch patch to the generator -------\n"
         "# Without it the epoch stays hardcoded at \"20 Jul 2020 12:00:00.000\" and SRPArea,\n"
         "# Cr, DragArea, Cd and DryMass are sampled at random per run.\n"
         f"# epoch: \"{epoch.strftime('%d %b %Y %H:%M:%S.000')}\"\n"

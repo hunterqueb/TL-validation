@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Download and cache one object's TLE history (P1-01)."""
+"""Download and cache one object's TLE history."""
 import argparse
 import pathlib
 import sys

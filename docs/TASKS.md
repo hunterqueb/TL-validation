@@ -113,7 +113,7 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 
 | ID | Task | Status | Owner | Depends on | DoD | Log |
 |---|---|---|---|---|---|---|
-| P4-01 | `scripts/branch_a_zero_shot.py`: train on synthetic run 0, 1 period, 5 epochs; source plot set (`figures/28089-a-SourceDomain*`); then evaluate on real 5-period window with **no** training: teacher-forced + rollout; CSV rows `branch=a` | blocked | claude | P3-01, P2-02, P2-03 | seed 0 Mamba: source position MAPE ≤ 0.1 %; real rows written with noise floor |2026-09-17 claude: scripts/branch_a_zero_shot.py written and exercised end to end; needs the real dataset and the matched synthetic set (R2-05) -- blocked_by H-2 (window) / P1-06 |
+| P4-01 | `scripts/branch_a_zero_shot.py`: train on synthetic run 0, 1 period, 5 epochs; source plot set (`figures/28089-a-SourceDomain*`); then evaluate on real 5-period window with **no** training: teacher-forced; CSV rows `branch=a` | blocked | claude | P3-01, P2-02, P2-03 | seed 0 Mamba: source position MAPE ≤ 0.1 %; real rows written with noise floor |2026-09-17 claude: scripts/branch_a_zero_shot.py written and exercised end to end; needs the real dataset and the matched synthetic set (R2-05) -- blocked_by H-2 (window) / P1-06 |
 | P4-02 | Run matrix `{mamba, lstm} × {0,1,2}` | todo | | P4-01 | 6 rows in `results/branch_a.csv` | |
 | P4-03 | Save the source-trained state dicts to `results/models/28089-a-<model>-s<seed>.pt` for reuse in P5 (`qutils.ml.utils.saveModel` or `torch.save`) | todo | | P4-02 | 6 files; reload test in P5-01 | |
 | P4-04 | Milestone M2 → status; phase note | todo | | P4-02, P4-03 | | |
@@ -123,10 +123,10 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 | ID | Task | Status | Owner | Depends on | DoD | Log |
 |---|---|---|---|---|---|---|
 | P5-01 | `tests/test_transfer.py`: after `transfer(src,tgt,'full')` + one `fit` step on random data, ≥ 1 parameter differs; after `'feature'`, `tgt.layers[0].mixer.in_proj` weights equal `src` (guards F1) | done | claude | P2-01, P2-02 | pytest green |2026-09-17 claude: tests/test_transfer.py: 4 tests, green -- full transfer changes the target and leaves the source alone; feature keeps in_proj and A_log frozen; LSTM copies every layer |
-| P5-02 | `scripts/branch_c_transfer.py --tl {full,feature}`: load P4-03 model, `transfer`, `fit(newModel, real, train 1 period, 2 epochs)`, evaluate on 4 periods (teacher-forced + rollout); target plot set `figures/28089-c-TargetDomain*`; CSV rows `branch=c` | blocked | claude | P5-01, P4-03, P2-07 | seed 0 Mamba `full` completes; the equal-budget row from P2-07 with the same seed exists |2026-09-17 claude: scripts/branch_c_transfer.py written and exercised for tl=full and tl=feature; needs M1 and M2 green first (PLAN hard rule) -- blocked_by H-2 (window) / P1-06 |
+| P5-02 | `scripts/branch_c_transfer.py --tl {full,feature}`: load P4-03 model, `transfer`, `fit(newModel, real, train 1 period, 2 epochs)`, evaluate on 4 periods (teacher-forced); target plot set `figures/28089-c-TargetDomain*`; CSV rows `branch=c` | blocked | claude | P5-01, P4-03, P2-07 | seed 0 Mamba `full` completes; the equal-budget row from P2-07 with the same seed exists |2026-09-17 claude: scripts/branch_c_transfer.py written and exercised for tl=full and tl=feature; needs M1 and M2 green first (PLAN hard rule) -- blocked_by H-2 (window) / P1-06 |
 | P5-03 | Run matrix `{full, feature} × {mamba, lstm} × {0,1,2}` | todo | | P5-02 | 12 rows in `results/branch_c.csv` | |
 | P5-04 | *(optional)* `--tl full-multi`: pretrain on P3-02 bank (concatenated `create_datasets`), then fine-tune; matrix for Mamba only | todo | | P3-02, P5-02 | 3 rows | |
-| P5-05 | Headline check (HANDOFF §6.2 M3 target): median over seeds, Mamba `full` vs P2-07 from-scratch-2-epoch vs P4 zero-shot, on teacher-forced MAPE **and** rollout 1 T. Write the three numbers and the noise floor here | todo | | P5-03 | numbers in this log; M3 → `awaiting_review` | |
+| P5-05 | Headline check (HANDOFF §6.2 M3 target): median over seeds, Mamba `full` vs P2-07 from-scratch-2-epoch vs P4 zero-shot, on teacher-forced MAPE. Write the three numbers and the noise floor here | todo | | P5-03 | numbers in this log; M3 → `awaiting_review` | |
 
 ## P6 — Long-term 7-day variants (HANDOFF §5 step 6)
 
@@ -140,8 +140,8 @@ F-05–F-14 below are open review follow-ups, not approved implementation change
 
 | ID | Task | Status | Owner | Depends on | DoD | Log |
 |---|---|---|---|---|---|---|
-| P7-01 | `scripts/summarize.py`: read `results/branch_*.csv`; per (branch, model, tl_mode, style) median ± IQR over seeds; noise-floor row; write `results/summary.md` in the ASC Table 1–3 layout (columns x, y, z, ẋ, ẏ, ż MAPE) plus rollout and energy columns | blocked | claude | P6-03 | table renders; every row has ≥ 3 seeds or is flagged |2026-09-17 claude: scripts/summarize.py written and exercised; needs result rows -- blocked_by H-2 (window) / P1-06 |
-| P7-02 | `figures/Summary-MAPE.pdf` and `figures/Summary-Rollout.pdf`: grouped bars a/b/c × Mamba/LSTM, error bars = IQR, dashed line = noise floor; title carries "truth = SGP4 from space-track TLEs" | todo | | P7-01 | figures exist; read the `dataviz` skill before plotting | |
+| P7-01 | `scripts/summarize.py`: read `results/branch_*.csv`; per (branch, model, tl_mode, style) median ± IQR over seeds; noise-floor row; write `results/summary.md` in the ASC Table 1–3 layout (columns x, y, z, ẋ, ẏ, ż MAPE) plus energy column | blocked | claude | P6-03 | table renders; every row has ≥ 3 seeds or is flagged |2026-09-17 claude: scripts/summarize.py written and exercised; needs result rows -- blocked_by H-2 (window) / P1-06 |
+| P7-02 | `figures/Summary-MAPE.pdf`: grouped bars a/b/c × Mamba/LSTM, error bars = IQR, dashed line = noise floor; title carries "truth = SGP4 from space-track TLEs" | todo | | P7-01 | figures exist; read the `dataviz` skill before plotting | |
 | P7-03 | One-page `results/README.md`: what was claimed (ASC, DDDAS), what was measured, the three headline numbers, the F1 correction and its effect (link `results/asc2025_corrected.md`) | todo | | P7-01, R3-03 | ≤ 1 page; no number without seed count and noise floor | |
 | P7-04 | Final phase note; M4 → `awaiting_review` | todo | | P7-03 | | |
 

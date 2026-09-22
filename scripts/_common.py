@@ -1,7 +1,4 @@
-"""Shared plumbing for the branch scripts: window loading, the standard plot set, result rows.
-
-Lives in scripts/ rather than tlv/ so tlv stays at six modules (PLAN.md rule 9).
-"""
+"""Shared plumbing for the branch scripts. Kept out of tlv/, which is capped at six modules."""
 import pathlib
 import sys
 import warnings
@@ -22,7 +19,7 @@ from qutils.plot import plot3dOrbitPredictions, newPlotSolutionErrors, plotEnerg
 
 from tlv import datasets as ds
 from tlv import metrics as mt
-from tlv.train import predict_teacher_forced, rollout, STATES, UNITS
+from tlv.train import predict_teacher_forced, STATES, UNITS
 
 FIGDIR = pathlib.Path("figures")
 
@@ -32,7 +29,7 @@ def load_targets(path="configs/targets.yaml"):
 
 
 def object_label(norad, path="configs/targets.yaml"):
-    """'Yamal 202 (NORAD 28089)' from targets.yaml -- what a figure title should say."""
+    """'Yamal 202 (NORAD 28089)' from targets.yaml, else 'NORAD <n>'."""
     try:
         cfg = load_targets(path)
     except OSError:
@@ -53,14 +50,14 @@ def load_window(norad, minutes, n_windows, index=0, period_sec=None):
     states, t_sec, extras, meta = ds.load_real(norad, minutes, n_windows)
     period_sec = period_sec or meta.get("period_sec")
     if period_sec is None:
-        raise ValueError("period_sec missing from meta.json -- rebuild the dataset (P1-04)")
+        raise ValueError("period_sec missing from meta.json -- rebuild it with scripts/build_real_dataset.py")
     return dict(seq=states[index], t_sec=np.asarray(t_sec, dtype=float),
                 handoff=extras["handoff_jump_km"][index], period_sec=float(period_sec),
                 meta=meta, index=index)
 
 
 def provenance(w):
-    """Row fields that say which data a result came from (HANDOFF REV-09)."""
+    """Row fields that say which data a result came from."""
     return dict(window=w["index"], tle_sha256=w["meta"].get("tle_sha256", "")[:12])
 
 
@@ -76,29 +73,19 @@ def datasets_for(seq_dim, train_size, device):
 
 def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, device,
              prefix, model_name, domain="TargetDomain", plots=True, title=None, detail=""):
-    """Standard plot set (HANDOFF 6.1) + the metrics every row needs.
+    """Write the four standard figures and return the metric fields of a result row.
 
-    `domain` is the filename fragment (HANDOFF 6.1 naming). `title` is what the figures
-    say; it defaults to `domain` for the branches that really do have a source and a
-    target domain. A branch with no transfer step passes its own title -- there is no
-    target domain when nothing was transferred.
-
-    Returns a dict of result-row fields. Teacher-forced and rollout are always produced
-    together (guardrail 9.3.3) and the hand-off statistic always travels with them (9.3.4).
+    `domain` goes in file names, `title` (default `domain`) in figure titles.
     """
     subject = domain if title is None else title
     train_in, train_out, test_in, test_out = create_datasets(seq_nd, 1, train_size, device)
     t_periods = t_sec / period_sec
     test_size = len(seq_nd) - train_size
-    # Forecast origin = the last observed state. With lookback 1 the training transitions
-    # end at x_{train_size-1} -> x_{train_size}, so state train_size is a training target
-    # and scoring starts at train_size + 1 (HANDOFF REV-02/REV-04).
-    origin = train_size
+    origin = train_size  # last observed state: at lookback 1, the last training target
 
     tf_dim = predict_teacher_forced(model, t_periods, seq_nd.copy(), train_in, test_in,
                                     train_size, test_size,
                                     DU=ds.DU_EARTH, TU=ds.TU_EARTH, plotOn=plots)
-    ro_dim = ds.redim(rollout(model, seq_nd, train_size, device))
 
     if plots:
         FIGDIR.mkdir(exist_ok=True)
@@ -110,8 +97,7 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
         _title_fig("Orbit", subject, detail, size=(8, 6.5), top=0.88)
         _save(f"{prefix}-{domain}Orbit-{model_name}.pdf")
 
-        # no `units=`: with percentError=True qutils labels the axes '% Error' itself.
-        # Passing UNITS overrode that and put "km" / "km/s" on a percent-error plot.
+        # no `units=`: percentError=True labels the axes '% Error' itself
         newPlotSolutionErrors(seq_dim, tf_dim, t_periods, timeLabel="Periods",
                               percentError=True, states=STATES)
         _title_fig("Percent error per state", subject, detail,
@@ -125,22 +111,13 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
                    size=(8, 5.5), top=0.88)
         _save(f"{prefix}-{domain}ConservedQuantity-{model_name}.pdf")
 
-        mt.plot_rollout_error(ro_dim, seq_dim, t_sec, period_sec, handoff,
-                              path=FIGDIR / f"{prefix}-{domain}Rollout-{model_name}.png",
-                              title=f"Closed-loop rollout - {subject}"
-                                    + (f"\n{detail}" if detail else ""),
-                              label=model_name, origin=origin)
-
     test = slice(origin + 1, None)                  # strictly after the last observed state
     m = mape(seq_dim[test], tf_dim[test], axis=0)   # per-state MAPE, as in the ASC tables
-    ro_err = mt.position_error_at(ro_dim, seq_dim, t_sec, period_sec, periods=(1, 5),
-                                  origin=origin)
     med, p95 = mt.noise_floor(handoff)
     return dict(
         mape_x=m[0], mape_y=m[1], mape_z=m[2], mape_vx=m[3], mape_vy=m[4], mape_vz=m[5],
         rmse_pos_km=float(np.sqrt(np.mean(
             np.sum((tf_dim[test, :3] - seq_dim[test, :3]) ** 2, axis=1)))),
-        rollout_pos_1T_km=ro_err[1], rollout_pos_5T_km=ro_err[5],
         energy_drift_pct=mt.energy_drift(tf_dim[test]),
         handoff_med_km=med, handoff_p95_km=p95, handoff_n=mt.handoff_count(handoff),
         origin_sec=float(t_sec[origin]),
@@ -148,12 +125,7 @@ def evaluate(model, seq_nd, seq_dim, t_sec, period_sec, train_size, handoff, dev
 
 
 def _title_fig(kind, subject, detail="", size=None, top=0.90):
-    """Title the current figure without letting the title land on the axes.
-
-    Two lines: what the figure shows and of what, then the run detail.
-    suptitle draws in figure coordinates, so on a multi-panel figure it overlaps the top
-    row unless the axes are shrunk to make room -- that is what `rect` does here.
-    """
+    """Suptitle the current figure, shrinking the axes below `top` so they do not overlap."""
     fig = plt.gcf()
     if size:
         fig.set_size_inches(*size)
@@ -176,7 +148,6 @@ def report(row, csv_path):
     print(f"[{run_id}] {row['branch']}/{row.get('style','')} {row['model']} "
           f"tl={row['tl_mode']} seed={row['seed']}: "
           f"MAPE pos {np.mean([row['mape_x'], row['mape_y'], row['mape_z']]):.4g} % | "
-          f"rollout 1T {row['rollout_pos_1T_km']:.3g} km | "
           f"hand-off med {row['handoff_med_km']:.3g} / p95 {row['handoff_p95_km']:.3g} km "
           f"(n={row['handoff_n']})")
     return run_id

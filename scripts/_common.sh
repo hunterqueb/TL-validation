@@ -18,8 +18,7 @@ RAN=0
 FAILED=0
 FAILED_LABELS=""
 
-# run <label> <script> <args...> -- one matrix cell. Plots are on: the standard plot set
-# (HANDOFF 6.1) is written by every run, and figure names carry style, model and seed.
+# run <label> <script> <args...> -- one matrix cell, plots on.
 run () {
     label=$1; shift
     RAN=$((RAN + 1))
@@ -42,7 +41,7 @@ need_real () {
     exit 1
 }
 
-# need_synthetic <minutes> <n_sys> -- the matched GMAT source domain (HANDOFF 5 step 3).
+# need_synthetic <minutes> <n_sys> -- the matched GMAT source domain.
 need_synthetic () {
     python - "$1" "$2" <<'PY' || exit 1
 import sys
@@ -50,7 +49,7 @@ from tlv import datasets as ds
 try:
     ds.load_synthetic(orbit="geo", minutes=int(sys.argv[1]), n_sys=int(sys.argv[2]))
 except FileNotFoundError as e:
-    sys.exit(f"{e}\n\nThe matched GEO source domain is a GMAT run (TASKS R2-05, Hunter-run):\n"
+    sys.exit(f"{e}\n\nThe matched GEO source domain is a GMAT run, done by hand:\n"
              f"  cp configs/gmat/gmat_28089_asc.yaml ~/git/GMAT-Thrust-Data/config.yaml\n"
              f"  ( cd ~/git/GMAT-Thrust-Data && ./generateGMATNoThrustDataset.sh )\n"
              f"Branches (a) and (c) cannot run without it.")

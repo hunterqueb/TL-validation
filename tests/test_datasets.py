@@ -1,21 +1,20 @@
-"""HANDOFF section 9.4: non-dim round-trip, synthetic shapes, period split."""
+"""Non-dim round-trip, synthetic shapes, period split."""
 import numpy as np
 import pytest
 
 from tlv import datasets as ds
 
-SYNTH = dict(minutes=450, n_sys=4000)   # 450min-10000 / 900min-10000 are empty dirs
-                                        # (LEO: the GEO set the branches need does not exist yet)
+SYNTH = dict(minutes=450, n_sys=4000)   # 450min-10000 is an empty dir
 
 
 def test_nondim_roundtrip():
-    """Requires the qutils constants fix (F4, R1-01): the mu typo made this fail by 0.23 %."""
+    """Requires the qutils constants fix : a mu typo (396800) made this fail by 0.23 %."""
     x = np.random.default_rng(0).uniform(-8000, 8000, (50, 6))
     assert np.allclose(ds.redim(ds.nondim(x)), x, atol=1e-12)
 
 
 def test_nondim_copies():
-    """dim2NonDim6 mutates its input; nondim() must not (guardrail 9.3.1)."""
+    """dim2NonDim6 mutates its input; nondim() must not."""
     x = np.ones((3, 6))
     ds.nondim(x)
     assert np.all(x == 1.0)
@@ -40,4 +39,4 @@ def test_load_synthetic_shape_and_time_base():
     states, t_sec, _ = ds.load_synthetic(**SYNTH)
     assert states.ndim == 3 and states.shape[2] == 6
     assert states.shape[1] == SYNTH["minutes"]
-    assert t_sec[0] == 60.0          # GMAT sample j is after the (j+1)-th step (F5)
+    assert t_sec[0] == 60.0          # GMAT sample j is after the (j+1)-th step

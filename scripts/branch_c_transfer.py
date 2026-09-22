@@ -1,12 +1,8 @@
 #!/usr/bin/env python
-"""Branch (c): synthetic pretrain -> 2-epoch real fine-tune (P5-02).
+"""Branch (c): synthetic pretrain -> 2-epoch real fine-tune.
 
-The corrected ASC loop: the *target* model is the one that is optimized and the one that
-is evaluated (HANDOFF F1). tests/test_transfer.py guards that.
-
-Equal-budget rule (HANDOFF 6.2): the comparison row is branch (b) --style asc2 with the
-same seed -- same real samples, same target epochs, same batch size. Only the initial
-weights differ.
+The target model is the one optimized and evaluated; the ASC 2025 script trained neither.
+Compare against branch (b) --style asc2 at the same seed: only the initial weights differ.
 """
 import argparse
 import pathlib

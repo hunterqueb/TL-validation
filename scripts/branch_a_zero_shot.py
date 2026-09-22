@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-"""Branch (a): train on matched synthetic, evaluate on real with NO target training (P4-01).
+"""Branch (a): train on matched synthetic, evaluate on real with NO target training.
 
-This is the ASC 2025 procedure as it actually runs (HANDOFF F1), and the baseline that
-branch (c) has to beat. The source-trained weights are saved for branch (c) to start from.
+This is what the ASC 2025 script actually did (its target model was never trained), and
+the baseline for branch (c), which starts from the source weights saved here.
 """
 import argparse
 import pathlib
@@ -35,7 +35,6 @@ def train_source(cfg, norad, model_name, seed, device, plots=True, prefix=None):
     states, t_syn, _ = ds.load_synthetic(orbit=src.get("orbit", "leo"),
                                         minutes=src["minutes"], n_sys=src["n_sys"])
     seq_dim = states[src["index"]]
-    # GMAT sample j is the state after the (j+1)-th step (F5): t_j = (j+1)*dt, set in load_synthetic
     period_syn = float(ECI2OE(seq_dim[0, :3], seq_dim[0, 3:])[6])
 
     train_size = ds.split_periods(seq_dim, period_syn, src["train_periods"])
@@ -49,7 +48,7 @@ def train_source(cfg, norad, model_name, seed, device, plots=True, prefix=None):
                        model_name.capitalize(), domain="SourceDomain", plots=plots)
     print(f"source domain ({src['minutes']}min-{src['n_sys']} run {src['index']}): "
           f"position MAPE {np.mean([src_row['mape_x'], src_row['mape_y'], src_row['mape_z']]):.4g} % "
-          "(M2 target: <= 0.1 %)")
+          "(target: <= 0.1 %)")
     return model, train_s, src_row
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""results/branch_*.csv -> results/summary.md + comparison figures (P7-01, P7-02)."""
+"""results/branch_*.csv -> results/summary.md + comparison figures."""
 import argparse
 import glob
 import pathlib
@@ -10,10 +10,8 @@ import pandas as pd
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 
 MAPE = ["mape_x", "mape_y", "mape_z", "mape_vx", "mape_vy", "mape_vz"]
-EXTRA = ["rollout_pos_1T_km", "rollout_pos_5T_km", "rmse_pos_km", "energy_drift_pct"]
-# `window` is a grouping key, not just a dedupe key: rows from different time windows must
-# not silently land in one median (HANDOFF REV-05/REV-09 -- comparisons are paired by
-# window and seed). Seeds vary within a row; windows get their own row.
+EXTRA = ["rmse_pos_km", "energy_drift_pct"]
+# windows get their own row; comparisons are paired by window and seed
 KEYS = ["object", "branch", "style", "model", "tl_mode", "window"]
 RUN = KEYS + ["seed"]              # one result per configuration, not per rerun
 
@@ -28,8 +26,7 @@ def main():
     if not files:
         raise SystemExit(f"no {a.results}/branch_*.csv yet")
     df = pd.concat([pd.read_csv(f) for f in files], ignore_index=True)
-    # Append-only CSVs hold every rerun. Aggregating them all lets one repeated run
-    # reweight a median (HANDOFF REV-09); keep the last row per configuration instead.
+    # CSVs are append-only; keep the last rerun so repeats don't reweight a median
     n_all = len(df)
     df = df.drop_duplicates(subset=RUN, keep="last")
     if len(df) < n_all:
@@ -43,14 +40,13 @@ def main():
              "Truth = SGP4 from space-track TLEs. Every number is the median over seeds; "
              "+- is the inter-quartile range. Rows with fewer than 3 seeds are flagged (!).",
              "", "| object | branch | style | model | tl | window | seeds | " +
-             " | ".join(MAPE) + " | rollout 1T (km) | rollout 5T (km) | energy drift (%) |",
-             "|" + "---|" * (len(KEYS) + 1 + len(MAPE) + 3)]
+             " | ".join(MAPE) + " | energy drift (%) |",
+             "|" + "---|" * (len(KEYS) + 1 + len(MAPE) + 1)]
     for key in med.index:
         n = int(seeds.loc[key])
         flag = "" if n >= 3 else " (!)"
         cells = [f"{med.loc[key, c]:.4g} ± {iqr.loc[key, c]:.2g}" for c in MAPE]
-        cells += [f"{med.loc[key, c]:.4g}" for c in
-                  ["rollout_pos_1T_km", "rollout_pos_5T_km", "energy_drift_pct"]]
+        cells += [f"{med.loc[key, 'energy_drift_pct']:.4g}"]
         lines.append("| " + " | ".join(list(map(str, key)) + [f"{n}{flag}"] + cells) + " |")
 
     nf = df[["handoff_med_km", "handoff_p95_km", "handoff_n"]].median()
@@ -58,15 +54,13 @@ def main():
                   f"p95 {nf['handoff_p95_km']:.3g} km over {nf['handoff_n']:.0f} hand-offs "
                   "(median across runs). Successive TLEs disagree by this much, so errors "
                   "at or below it say nothing about a model. It is a consistency statistic "
-                  "between orbit products, not a calibrated accuracy floor (REV-01).",
-              "", "Rollout horizons are measured from the forecast origin, the last "
-                  "observed state (REV-02)."]
+                  "between orbit products, not a calibrated accuracy floor."]
 
     out = pathlib.Path(a.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n")
     print(f"wrote {out} ({len(med)} rows from {len(files)} csv files)")
-    print("figures: read the dataviz skill before writing Summary-MAPE / Summary-Rollout (P7-02)")
+    print("figures: read the dataviz skill before writing Summary-MAPE")
 
 
 if __name__ == "__main__":

@@ -1,14 +1,10 @@
 #!/usr/bin/env python
-"""Pick the TLE window before any model is run (P1-02, H-2; REV-05 wants this recorded).
+"""Pick the TLE window before any model is run, and record it in configs/targets.yaml.
 
 Criteria, in order:
-  1. the span must hold `--days` of continuous TLE coverage;
-  2. the largest gap between consecutive TLE epochs is minimised (SGP4 is only propagated
-     inside a TLE's own validity window, so a long gap is a long extrapolation);
-  3. no |d(sma)| step between consecutive TLEs exceeds `--max-step` km. At GEO a station-
-     keeping or relocation burn shows up as a step of several km; fit noise is ~0.1 km.
-
-Ap is not a criterion at GEO (HANDOFF 9.5 item 2).
+  1. the span holds --windows x --minutes of continuous TLE coverage;
+  2. the largest gap between TLE epochs is minimised (a gap is an SGP4 extrapolation);
+  3. no |d(sma)| step between TLEs exceeds --max-step km (a GEO burn is several km).
 """
 import argparse
 import pathlib

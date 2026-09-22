@@ -1,8 +1,5 @@
-# data.yaml
-# Configuration file for data paths, so i can easily change
-# the location of the data without making this repo too big.
-# One key: the overarching GMAT-Thrust-Data data folder. Everything under it
-# (<dataset>/<orbit>/<T>min-<N>/statesArray<Tag>.npz) is addressed from there.
+# GMAT-Thrust-Data data folder, kept outside this repo.
+# Files are addressed as <gmat>/<dataset>/<orbit>/<T>min-<N>/statesArray<Tag>.npz.
 
 # gmat: C:/Users/hu650776/GMAT-Thrust-Data/data/
 gmat: /home/hunter/git/GMAT-Thrust-Data/data/
