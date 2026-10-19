@@ -63,6 +63,9 @@ python scripts/build_real_dataset.py --norad 26769 --minutes 10080 --windows 3
 NORAD=26769 ./scripts/run_branch_b.sh
 ```
 
+Once the windows are in `configs/targets.yaml`, `./scripts/build_datasets.sh` runs all four
+`build_real_dataset.py` commands above, for both objects.
+
 `screen_window.py` ranks candidate spans by TLE coverage, largest TLE gap and |d(sma)| step
 before any model is run; the chosen window and its criteria are recorded in
 `configs/targets.yaml`.

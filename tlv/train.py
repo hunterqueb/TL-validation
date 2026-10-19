@@ -9,8 +9,11 @@ UNITS = ["km", "km", "km", "km/s", "km/s", "km/s"]
 
 
 def fit(model, datasets, epochs, lr=1e-3, criterion=None, verbose=False):
-    """Train with Adam + Huber (ASC hyper-parameters). Return seconds spent training."""
-    criterion = torch.nn.HuberLoss() if criterion is None else criterion
+    """Train with Adam + Huber (ASC hyper-parameters). Return seconds spent training.
+
+    SmoothL1Loss() is Huber with delta = beta = 1; HuberLoss itself needs torch >= 1.9.
+    """
+    criterion = torch.nn.SmoothL1Loss() if criterion is None else criterion
     optimizer = torch.optim.Adam([p for p in model.parameters() if p.requires_grad], lr=lr)
     return trainModel(model, epochs, list(datasets), criterion, optimizer,
                       printOutAcc=verbose, printOutToc=True)
