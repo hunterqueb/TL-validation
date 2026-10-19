@@ -11,7 +11,7 @@ from qutils.orbital import orbitalEnergyJ2
 COLUMNS = ["run_id", "branch", "style", "object", "window", "model", "tl_mode",
            "train_periods", "epochs_src", "epochs_tgt", "mape_x", "mape_y", "mape_z",
            "mape_vx", "mape_vy", "mape_vz", "rmse_pos_km", "energy_drift_pct", "handoff_med_km", "handoff_p95_km",
-           "handoff_n", "origin_sec", "tle_sha256", "train_s", "seed"]
+           "handoff_n", "origin_sec", "tle_sha256", "train_s", "test_s", "n_params", "seed"]
 
 
 def energy_drift(seq_dim, mu=None, Re=None):
@@ -50,6 +50,14 @@ def append_result(csv_path, row):
     new = not path.exists()
     # an older file keeps its own header, so dropped columns stay aligned (left blank)
     fields = COLUMNS if new else next(csv.reader(path.open()))
+    added = [c for c in COLUMNS if c in row and c not in fields]
+    if added:  # widen an older header; existing rows keep their values, blank in the new columns
+        rows = list(csv.DictReader(path.open()))
+        fields = fields + added
+        with path.open("w", newline="") as f:
+            w = csv.DictWriter(f, fieldnames=fields)
+            w.writeheader()
+            w.writerows(rows)
     with path.open("a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fields)
         if new:

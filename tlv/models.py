@@ -30,4 +30,4 @@ def transfer(source, target, mode):
 
 
 def param_count(model):
-    return sum(p.numel() for p in model.parameters())
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

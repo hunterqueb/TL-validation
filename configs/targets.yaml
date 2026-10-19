@@ -19,8 +19,24 @@ targets:
       stop: "2026-04-08"
       max_ap: null
       confirmed: true            # Hunter confirmed 2026-09-21
-  secondary: null                # was a LEO rocket body to stress drag; open question
-                                 # now that the primary is GEO
+  secondary:
+    name: BLOCK DM R/B
+    norad: 26769                 # COSPAR 2001-019D
+    why: >
+      Spent Proton upper stage in HEO: e 0.52, i 18.6 deg, perigee radius ~13 400 km,
+      apogee ~42 300 km. Perigee is too high for drag (B* fitted as 0), so the unmodelled
+      dynamics are J2 and third body -- J2 at perigee is ~100x its GEO value.
+    period_sec: null             # ~46277 s (771.3 min)
+    # Picked by scripts/screen_window.py over 2026-01-01..2026-10-19, before any model
+    # ran: 66 TLEs, max gap 25.6 h, max |d(sma)| 0.009 km. Hand-off median 0.16 km.
+    window:
+      start: "2026-01-31"
+      stop: "2026-02-27"
+      max_ap: null
+    # 6 periods = 4630 min (asc, 8 windows); 7 days = 10080 min fits only 3 windows here
+    windows:
+      asc:  {minutes: 4630,  n_windows: 8}
+      long: {minutes: 10080, n_windows: 3}
   contaminated:                  # only to show a maneuver breaks all three branches
     name: ISS
     norad: 25544

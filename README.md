@@ -53,6 +53,16 @@ python scripts/build_real_dataset.py --norad 28089 --minutes 10080 --windows 4
 pytest tests/
 ```
 
+Secondary target, BLOCK DM R/B (NORAD 26769, HEO, period 771.3 min), branch (b) only:
+
+```bash
+python scripts/screen_window.py --norad 26769 --start 2026-01-01 --stop 2026-10-19 \
+    --minutes 4630 --windows 8 --max-step 1.0
+python scripts/build_real_dataset.py --norad 26769 --minutes 4630  --windows 8
+python scripts/build_real_dataset.py --norad 26769 --minutes 10080 --windows 3
+NORAD=26769 ./scripts/run_branch_b.sh
+```
+
 `screen_window.py` ranks candidate spans by TLE coverage, largest TLE gap and |d(sma)| step
 before any model is run; the chosen window and its criteria are recorded in
 `configs/targets.yaml`.
@@ -74,7 +84,7 @@ cp configs/gmat/gmat_28089_long.yaml ~/git/GMAT-Thrust-Data/config.yaml
 ./scripts/run_branch_b.sh      # M1 + M1b: {asc, asc2, dddas} x {mamba, lstm} x 3 seeds = 18 runs
 ./scripts/run_branch_a.sh      # M2:       {mamba, lstm} x 3 seeds = 6 runs
 ./scripts/run_branch_c.sh      # M3:       {full, feature} x {mamba, lstm} x 3 seeds = 12 runs
-python scripts/summarize.py    # results/branch_*.csv -> results/summary.md
+python scripts/summarize.py    # results/branch_*.csv -> results/summary.md + results/branch_b_cost.tex
 ```
 
 | script | styles / modes | needs |
@@ -98,13 +108,14 @@ Narrow a re-run with arguments or the environment — settings live in
 SEEDS=0 MODELS=mamba ./scripts/run_branch_b.sh dddas
 WINDOW=3 ./scripts/run_branch_b.sh asc           # a different window of the set
 SUMMARIZE=0 ./scripts/run_branch_b.sh            # skip the summary at the end
+NORAD=26769 ./scripts/run_branch_b.sh            # the Block DM R/B (HEO) secondary target
 ```
 
 | variable | default | |
 |---|---|---|
-| `NORAD` | `28089` | target object |
-| `ASC_MIN` / `ASC_WIN` | `8620` / `8` | ASC-style window: 6 periods, 8 of them |
-| `LONG_MIN` / `LONG_WIN` | `10080` / `4` | 7-day window |
+| `NORAD` | `28089` | target object (`26769`: Block DM R/B, HEO) |
+| `ASC_MIN` / `ASC_WIN` | `8620` / `8` (26769: `4630` / `8`) | ASC-style window: 6 periods, 8 of them |
+| `LONG_MIN` / `LONG_WIN` | `10080` / `4` (26769: `10080` / `3`) | 7-day window |
 | `WINDOW` | `0` | which window of the set to use |
 | `SEEDS` | `0 1 2` | three is the floor for any headline number |
 | `MODELS` | `mamba lstm` | |

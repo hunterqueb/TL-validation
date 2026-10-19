@@ -60,6 +60,34 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n")
     print(f"wrote {out} ({len(med)} rows from {len(files)} csv files)")
+    cost_table(df, out.parent / "branch_b_cost.tex")
+
+
+def cost_table(df, path):
+    """Branch (b) learnable parameters, train and test time over seeds -> booktabs LaTeX."""
+    if "test_s" not in df:
+        return
+    b = df[(df["branch"] == "b") & df["test_s"].notna() & df["n_params"].notna()]
+    if b.empty:
+        return
+    keys = ["object", "style", "model"]
+    q = b.groupby(keys)[["train_s", "test_s"]]
+    med, iqr = q.median(), q.quantile(.75) - q.quantile(.25)
+    params, seeds = b.groupby(keys)["n_params"].max(), b.groupby(keys)["seed"].nunique()
+    rows = [r"\begin{table}[htbp]", r"\centering",
+            r"\caption{Branch (b) cost: median $\pm$ IQR over seeds. Test time is one "
+            r"teacher-forced pass over the test set, plotting excluded.}",
+            r"\label{tab:branch-b-cost}", r"\begin{tabular}{llllrrr}", r"\toprule",
+            r"NORAD & Style & Model & Seeds & Parameters & Train (s) & Test (ms) \\", r"\midrule"]
+    for (obj, style, model), m in med.iterrows():
+        k = (obj, style, model)
+        rows.append(f"{obj} & {style} & {model.upper() if model == 'lstm' else model.capitalize()} & "
+                    f"{seeds[k]} & {int(params[k]):,} & "
+                    f"{m['train_s']:.2f} $\\pm$ {iqr.loc[k, 'train_s']:.2f} & "
+                    f"{1e3 * m['test_s']:.2f} $\\pm$ {1e3 * iqr.loc[k, 'test_s']:.2f} \\\\".replace(",", "{,}"))
+    rows += [r"\bottomrule", r"\end{tabular}", r"\end{table}"]
+    path.write_text("\n".join(rows) + "\n")
+    print(f"wrote {path} ({len(med)} rows)")
     print("figures: read the dataviz skill before writing Summary-MAPE")
 
 

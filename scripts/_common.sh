@@ -7,8 +7,12 @@ set -u
 cd "$(dirname "$0")/.."          # repo root: the configs use paths relative to it
 
 NORAD=${NORAD:-28089}
-ASC_MIN=${ASC_MIN:-8620};    ASC_WIN=${ASC_WIN:-8}      # 6 periods (1 train + 5 forecast)
-LONG_MIN=${LONG_MIN:-10080}; LONG_WIN=${LONG_WIN:-4}    # 7 days
+case $NORAD in                   # per-object windows, as in configs/targets.yaml
+    26769) asc_min=4630; long_win=3 ;;                  # Block DM R/B, HEO, 771.3 min period
+    *)     asc_min=8620; long_win=4 ;;                  # Yamal 202, GEO, 1436.1 min period
+esac
+ASC_MIN=${ASC_MIN:-$asc_min}; ASC_WIN=${ASC_WIN:-8}     # 6 periods (1 train + 5 forecast)
+LONG_MIN=${LONG_MIN:-10080}; LONG_WIN=${LONG_WIN:-$long_win}  # 7 days
 WINDOW=${WINDOW:-0}                                     # which window of the set
 SEEDS=${SEEDS:-"0 1 2"}                                 # >= 3 for any headline number
 MODELS=${MODELS:-"mamba lstm"}
